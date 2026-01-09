@@ -23,8 +23,6 @@ public class MenuManager : MonoBehaviour
     // Optional: name of the CSV file. 
     public string fallbackCsvFileName = "experiment_data.csv";
 
-    private string selectedFoodId = null;
-
     private void Start()
     {
         // Register "Order Now!" button
@@ -84,8 +82,12 @@ public class MenuManager : MonoBehaviour
         // Menu 2 will be shown by Agent/StateManagement when the agent arrives
         // if (menuOrderRoot != null) menuOrderRoot.SetActive(true);
 
-        // Reset previous selection
-        selectedFoodId = null;
+        // Reset previous selection in StateManagement
+        if (stateManager != null)
+        {
+            stateManager.selectedFoodId = null;
+        }
+
         if (foodToggleGroup != null)
         {
             foreach (var t in foodToggleGroup.GetComponentsInChildren<Toggle>())
@@ -109,15 +111,18 @@ public class MenuManager : MonoBehaviour
     {
         if (isInitializing) return; // Ignore events during setup
 
-        // Use toggle name as the option ID (you can change this if you prefer explicit IDs)
-        selectedFoodId = toggle.name;
-        Debug.Log($"[MenuManager] Food selected: {selectedFoodId}");
+        if (stateManager == null)
+        {
+            Debug.LogError("[MenuManager] StateManagement reference is null!");
+            return;
+        }
+
+        // Store selection in StateManagement
+        stateManager.selectedFoodId = toggle.name;
+        Debug.Log($"[MenuManager] Food selected: {stateManager.selectedFoodId}");
 
         // Mark food selected in global state
-        if (stateManager != null)
-        {
-            stateManager.isFoodSelected = true;
-        }
+        stateManager.isFoodSelected = true;
 
         // Immediately go to Yes/No confirmation
         if (menuOrderRoot != null) menuOrderRoot.SetActive(false);
@@ -137,24 +142,24 @@ public class MenuManager : MonoBehaviour
             noToggle.group = null;
             noToggle.SetIsOnWithoutNotify(false);
         }
-        
+
         // Re-enable ToggleGroup
         if (tempGroup != null)
         {
             if (yesToggle != null) yesToggle.group = tempGroup;
             if (noToggle != null) noToggle.group = tempGroup;
         }
-        
+
         // Re-register listeners to ensure they're bound (defensive programming)
         RegisterConfirmListeners();
     }
-    
+
     private void RegisterConfirmListeners()
     {
         Debug.Log("[MenuManager] RegisterConfirmListeners called");
         Debug.Log($"[MenuManager] yesToggle = {(yesToggle == null ? "NULL" : yesToggle.name)}");
         Debug.Log($"[MenuManager] noToggle = {(noToggle == null ? "NULL" : noToggle.name)}");
-        
+
         if (yesToggle != null)
         {
             yesToggle.onValueChanged.RemoveListener(OnYesValueChanged);
@@ -165,7 +170,7 @@ public class MenuManager : MonoBehaviour
         {
             Debug.LogError("[MenuManager] yesToggle is NULL! Cannot register listener.");
         }
-        
+
         if (noToggle != null)
         {
             noToggle.onValueChanged.RemoveListener(OnNoValueChanged);
@@ -190,11 +195,16 @@ public class MenuManager : MonoBehaviour
     private System.Collections.IEnumerator PreparePhase2UICoroutine()
     {
         isInitializing = true;
-        
+
         if (menuOrderRoot != null) menuOrderRoot.SetActive(true);
         if (orderConfirmRoot != null) orderConfirmRoot.SetActive(false);
 
-        selectedFoodId = null;
+        // Reset selection in StateManagement
+        if (stateManager != null)
+        {
+            stateManager.selectedFoodId = null;
+            stateManager.isFoodSelected = false;
+        }
 
         // Reset toggles without firing events
         if (foodToggleGroup != null)
@@ -207,15 +217,9 @@ public class MenuManager : MonoBehaviour
             Debug.Log("[MenuManager] Reset all food toggles");
         }
 
-        // Reset state flag
-        if (stateManager != null)
-        {
-            stateManager.isFoodSelected = false;
-        }
-
         // Wait for next frame to ensure UI is fully initialized before accepting events
         yield return null;
-        
+
         isInitializing = false;
         Debug.Log("[MenuManager] PreparePhase2UI completed");
     }
@@ -227,24 +231,28 @@ public class MenuManager : MonoBehaviour
     private void OnYesValueChanged(bool isOn)
     {
         Debug.Log($"[MenuManager] OnYesValueChanged called, isOn={isOn}");
-        
+
         if (!isOn) return;  // only react when turned ON
 
-        if (selectedFoodId == null)
+        if (stateManager == null)
+        {
+            Debug.LogError("[MenuManager] StateManagement reference is null!");
+            return;
+        }
+
+        if (string.IsNullOrEmpty(stateManager.selectedFoodId))
         {
             Debug.LogWarning("[MenuManager] Yes clicked but no food selected.");
             return;
         }
 
+        // Save order to ExperimentSession
         ExperimentSession s = ExperimentSession.Instance;
-        if (s == null)
+        if (s != null)
         {
-            Debug.LogError("[MenuManager] ExperimentSession.Instance is null. Cannot write CSV.");
-            return;
+            s.orderChoice = stateManager.selectedFoodId;
+            Debug.Log($"[MenuManager] Order saved to ExperimentSession: {s.orderChoice}");
         }
-
-        // Save order
-        s.orderChoice = selectedFoodId;
 
         // Hide all menus
         if (menuReadRoot != null) menuReadRoot.SetActive(false);
@@ -252,12 +260,9 @@ public class MenuManager : MonoBehaviour
         if (orderConfirmRoot != null) orderConfirmRoot.SetActive(false);
 
         // Inform StateManagement: ordering confirmed → go to Phase 3
-        if (stateManager != null)
-        {
-            stateManager.StartPhase3();
-        }
+        stateManager.StartPhase3();
 
-        Debug.Log("[MenuManager] YES selected: order confirmed and CSV saved.");
+        Debug.Log("[MenuManager] YES selected: order confirmed.");
     }
 
     /// <summary>
@@ -266,7 +271,7 @@ public class MenuManager : MonoBehaviour
     private void OnNoValueChanged(bool isOn)
     {
         Debug.Log($"[MenuManager] OnNoValueChanged called, isOn={isOn}");
-        
+
         if (!isOn) return;  // only react when turned ON
 
         Debug.Log("[MenuManager] NO clicked: returning to menu order");
@@ -279,14 +284,14 @@ public class MenuManager : MonoBehaviour
 
         // Step 1: Hide confirm panel
         if (orderConfirmRoot != null) orderConfirmRoot.SetActive(false);
-        
+
         // Step 2: Show menu panel
         if (menuOrderRoot != null) menuOrderRoot.SetActive(true);
 
-        // Step 3: Reset selection state so user can re-select
-        selectedFoodId = null;
+        // Step 3: Reset selection state in StateManagement
         if (stateManager != null)
         {
+            stateManager.selectedFoodId = null;
             stateManager.isFoodSelected = false;
         }
 
@@ -304,14 +309,14 @@ public class MenuManager : MonoBehaviour
 
     private void Update()
     {
-        // FAILSAFE: Ensure Menu 2 and Menu 3 never overlap
-        if (menuOrderRoot != null && orderConfirmRoot != null)
-        {
-            if (menuOrderRoot.activeSelf && orderConfirmRoot.activeSelf)
-            {
-                Debug.LogWarning("[MenuManager] Overlap detected! Force hiding Confirm menu.");
-                orderConfirmRoot.SetActive(false);
-            }
-        }
+        //// FAILSAFE: Ensure Menu 2 and Menu 3 never overlap
+        //if (menuOrderRoot != null && orderConfirmRoot != null)
+        //{
+        //    if (menuOrderRoot.activeSelf && orderConfirmRoot.activeSelf)
+        //    {
+        //        Debug.LogWarning("[MenuManager] Overlap detected! Force hiding Confirm menu.");
+        //        orderConfirmRoot.SetActive(false);
+        //    }
+        //}
     }
 }

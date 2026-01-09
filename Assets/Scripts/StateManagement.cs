@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections;
 using System.Collections.Generic;
+using System;
 
 /// <summary>
 /// Manages global state: participant ID/condition, phases,
@@ -9,9 +10,6 @@ using System.Collections.Generic;
 /// </summary>
 public class StateManagement : MonoBehaviour
 {
-
-
-
     [Header("Configuration")]
     public string participantsCsvName = "Participants.csv";
 
@@ -33,13 +31,18 @@ public class StateManagement : MonoBehaviour
     public GameObject survey;    // Survey root
 
     [Header("Managers")]
-       // Reference to MenuManager
-    public SurveyManager surveyManager;  // Reference to SurveyManager
-    public MenuManager menuManager; 
+    public MenuManager menuManager;
+    public SurveyManager surveyManager;
+    public CSVWriter csvWriter;
+
     [Header("Status (Read Only in Inspector)")]
     public int participantID;
     public int condition;        // 1..4
     public int currentPhase;     // 1..4
+
+    public string selectedFoodId = null;
+    public int[] selectedOptions;
+
     public bool isOrderNowClicked;
     public bool isFoodSelected;
     public bool isOrderingConfirmed;
@@ -51,14 +54,10 @@ public class StateManagement : MonoBehaviour
     public bool IsOrderingConfirmed { get => isOrderingConfirmed; set => isOrderingConfirmed = value; }
     public bool IsSurveyCompleted { get => isSurveyCompleted; set => isSurveyCompleted = value; }
 
-    // Inner data type for CSV
-    // Moved to CsvWriter as public class
-
-    public List<CsvWriter.ParticipantData> allParticipants = new List<CsvWriter.ParticipantData>();
-
     private void Start()
     {
         Debug.Log("StateManagement is alive!");
+
         // Participant ID is stored in PlayerPrefs (set by your login / parameter scene)
         if (!PlayerPrefs.HasKey("ParticipantID"))
         {
@@ -72,6 +71,19 @@ public class StateManagement : MonoBehaviour
             participantID = PlayerPrefs.GetInt("ParticipantID");
         }
 
+        // Get condition from PlayerPrefs (should be set by your parameter scene)
+        if (!PlayerPrefs.HasKey("Condition"))
+        {
+            Debug.LogWarning("Condition not found in PlayerPrefs. Using default value 1. " +
+                             "Please set Condition using your login/parameter scene.");
+            condition = 1;
+            PlayerPrefs.SetInt("Condition", condition);
+        }
+        else
+        {
+            condition = PlayerPrefs.GetInt("Condition");
+        }
+
         // Start at Phase 1
         currentPhase = 1;
         PlayerPrefs.SetInt("Phase", currentPhase);
@@ -83,44 +95,25 @@ public class StateManagement : MonoBehaviour
         isOrderingConfirmed = false;
         isSurveyCompleted = false;
 
-        Debug.Log($"StateManagement initialized: Participant {participantID}, Phase {currentPhase}");
+        Debug.Log($"StateManagement initialized: Participant {participantID}, Condition {condition}, Phase {currentPhase}");
 
-        // Load participant data and apply condition
-        StartCoroutine(InitializeCondition());
+        // Apply condition settings
+        ApplyConditionSettings();
 
         // Hide all UI objects at the beginning
         if (menu != null) HideObject(menu);
         if (food != null) HideObject(food);
         if (ordering != null) HideObject(ordering);
         if (survey != null) HideObject(survey);
+
+        // Initialize selectedOptions to have 5 entries (for 5 survey questions)
+        selectedOptions = new int[5];
     }
 
     #region Condition & visual
 
-    public IEnumerator InitializeCondition()
-    {
-        allParticipants = CsvWriter.LoadParticipants(participantsCsvName);
-        if (allParticipants.Count > 0)
-        {
-            ApplyConditionSettings();
-        }
-        yield return null;  // Ensure the coroutine yields
-    }
-
     public void ApplyConditionSettings()
     {
-        CsvWriter.ParticipantData participantData = allParticipants.Find(p => p.participantID == participantID);
-
-        if (participantData == null)
-        {
-            Debug.LogWarning($"No condition found for Participant {participantID}. Using 1.");
-            condition = 1;
-        }
-        else
-        {
-            condition = participantData.condition;
-        }
-
         Debug.Log($"Applying settings for Condition {condition}");
 
         if (postProcessingVolume == null)
@@ -163,7 +156,7 @@ public class StateManagement : MonoBehaviour
                 break;
         }
 
-        // 把 participant/condition 同步到 ExperimentSession，方便 CsvWriter 使用
+        // Sync participant/condition to ExperimentSession
         ExperimentSession session = ExperimentSession.Instance;
         if (session != null)
         {
@@ -193,7 +186,7 @@ public class StateManagement : MonoBehaviour
 
         if (currentPhase == 1)
         {
-            IsOrderNowClicked = true;   // AgentDestinationSetter 在等這個
+            IsOrderNowClicked = true;
             NextPhase();
             Debug.Log("Phase 2 started: Food ordering.");
         }
@@ -209,7 +202,7 @@ public class StateManagement : MonoBehaviour
 
         if (currentPhase == 2)
         {
-            IsOrderingConfirmed = true; // AgentDestinationSetter 在等這個
+            IsOrderingConfirmed = true;
             NextPhase();
             Debug.Log("Phase 3 started: Survey.");
 
@@ -261,12 +254,75 @@ public class StateManagement : MonoBehaviour
         NextPhase();
         Debug.Log("Survey completed. Phase 4 (thank you) started.");
 
-        // Write final data to CSV (centralized here to avoid duplication)
+        // Write final data to CSV (centralized in StateManagement)
+        SaveSessionData();
+    }
+
+    /// <summary>
+    /// Writes a complete session data row from ExperimentSession.
+    /// Initializes CSV file if needed, then writes all data in one call.
+    /// </summary>
+    public void SaveSessionData()
+    {
         ExperimentSession session = ExperimentSession.Instance;
-        if (session != null)
+
+        if (session == null)
         {
-            CsvWriter.WriteParticipantRow(session);
+            Debug.LogError("[StateManagement] ExperimentSession.Instance is null!");
+            return;
         }
+
+        if (csvWriter == null)
+        {
+            Debug.LogError("[StateManagement] CSVWriter reference is null! Assign it in Inspector.");
+            return;
+        }
+
+        // Initialize file if not already done
+        if (!csvWriter.IsInitialized())
+        {
+            List<string> headers = new List<string>
+            {
+                "ParticipantID",
+                "Condition",
+                "OrderChoice",
+                "Q1_Choice",
+                "Q2_Choice",
+                "Q3_Choice",
+                "Q4_Choice",
+                "Q5_Choice",
+                "Timestamp"
+            };
+
+            int participantIdInt = -1;
+            int.TryParse(session.participantId, out participantIdInt);
+
+            csvWriter.InitializeFile(headers, participantIdInt);
+        }
+
+        if (!csvWriter.IsInitialized())
+        {
+            Debug.LogError("[StateManagement] Could not initialize CSV file!");
+            return;
+        }
+
+        // Prepare row data
+        Dictionary<string, string> rowData = new Dictionary<string, string>
+        {
+            { "ParticipantID", session.participantId ?? "" },
+            { "Condition", session.condition ?? "" },
+            { "OrderChoice", session.orderChoice ?? "" },
+            { "Q1_Choice", session.q1Choice ?? "" },
+            { "Q2_Choice", session.q2Choice ?? "" },
+            { "Q3_Choice", session.q3Choice ?? "" },
+            { "Q4_Choice", session.q4Choice ?? "" },
+            { "Q5_Choice", session.q5Choice ?? "" },
+            { "Timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
+        };
+
+        // Write the row
+        csvWriter.WriteRow(rowData);
+        Debug.Log($"[StateManagement] Session data saved for Participant {session.participantId}");
     }
 
     /// <summary>
@@ -304,12 +360,11 @@ public class StateManagement : MonoBehaviour
         }
 
         audioSource.clip = audioClips[index];
-        audioSource.volume = clipsVolume; // 仅应用到这里的音轨
+        audioSource.volume = clipsVolume;
         audioSource.Play();
         Debug.Log($"Playing audio clip {index}: {audioClips[index].name} at volume {clipsVolume}");
     }
 
-    // 当你在 Inspector 里拖动滑块时，声音会立刻变化
     private void OnValidate()
     {
         AudioSource audioSource = GetComponent<AudioSource>();

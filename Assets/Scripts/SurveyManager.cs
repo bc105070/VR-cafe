@@ -10,7 +10,6 @@ public class SurveyManager : MonoBehaviour
     public int endAudioIndex = 3;  // Index of end audio clip
 
     public int currentSurveyIndex = -1;
-    public int[] selectedOptions;        // Stores selected options for each survey
 
     private void Awake()
     {
@@ -22,7 +21,19 @@ public class SurveyManager : MonoBehaviour
             return;
         }
 
-        selectedOptions = new int[surveyPanels.Length];
+        // Initialize selectedOptions in StateManagement if needed
+        if (stateManager != null)
+        {
+            if (stateManager.selectedOptions == null || stateManager.selectedOptions.Length != surveyPanels.Length)
+            {
+                stateManager.selectedOptions = new int[surveyPanels.Length];
+                Debug.Log($"[SurveyManager] Initialized selectedOptions array in StateManagement with length {surveyPanels.Length}");
+            }
+        }
+        else
+        {
+            Debug.LogError("[SurveyManager] StateManagement reference is null! Cannot initialize selectedOptions.");
+        }
 
         foreach (var p in surveyPanels)
         {
@@ -51,13 +62,26 @@ public class SurveyManager : MonoBehaviour
     {
         Debug.Log("[SurveyManager] ChooseOption(" + optionIndex + ")");
 
+        if (stateManager == null)
+        {
+            Debug.LogError("[SurveyManager] StateManagement reference is null!");
+            return;
+        }
+
         if (currentSurveyIndex < 0 || currentSurveyIndex >= surveyPanels.Length)
         {
             Debug.LogWarning("[SurveyManager] invalid currentSurveyIndex: " + currentSurveyIndex);
             return;
         }
 
-        selectedOptions[currentSurveyIndex] = optionIndex;
+        if (stateManager.selectedOptions == null || currentSurveyIndex >= stateManager.selectedOptions.Length)
+        {
+            Debug.LogError("[SurveyManager] selectedOptions array in StateManagement is null or too small!");
+            return;
+        }
+
+        // Store selection in StateManagement
+        stateManager.selectedOptions[currentSurveyIndex] = optionIndex;
 
         // Hide current
         if (surveyPanels[currentSurveyIndex] != null)
@@ -78,13 +102,13 @@ public class SurveyManager : MonoBehaviour
             Debug.Log("[SurveyManager] All surveys finished");
             // Save survey answers to ExperimentSession
             ExperimentSession session = ExperimentSession.Instance;
-            if (session != null && selectedOptions.Length >= 5)
+            if (session != null && stateManager.selectedOptions.Length >= 5)
             {
-                session.q1Choice = selectedOptions[0].ToString();
-                session.q2Choice = selectedOptions[1].ToString();
-                session.q3Choice = selectedOptions[2].ToString();
-                session.q4Choice = selectedOptions[3].ToString();
-                session.q5Choice = selectedOptions[4].ToString();
+                session.q1Choice = stateManager.selectedOptions[0].ToString();
+                session.q2Choice = stateManager.selectedOptions[1].ToString();
+                session.q3Choice = stateManager.selectedOptions[2].ToString();
+                session.q4Choice = stateManager.selectedOptions[3].ToString();
+                session.q5Choice = stateManager.selectedOptions[4].ToString();
                 Debug.Log("[SurveyManager] Survey answers saved to ExperimentSession");
             }
 
