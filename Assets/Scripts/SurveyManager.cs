@@ -1,0 +1,122 @@
+using UnityEngine;
+using UnityEngine.Events;
+
+public class SurveyManager : MonoBehaviour
+{
+    public GameObject[] surveyPanels;    // e.g. Survey1, Survey2, Survey3, Survey4, Survey5
+    public UnityEvent onSurveyFinished;  // Event triggered when survey is completed
+
+    public StateManagement stateManager;  // Reference to StateManagement for audio
+    public int endAudioIndex = 3;  // Index of end audio clip
+
+    public int currentSurveyIndex = -1;
+    public int[] selectedOptions;        // Stores selected options for each survey
+
+    private void Awake()
+    {
+        Debug.Log("[SurveyManager] Awake");
+
+        if (surveyPanels == null || surveyPanels.Length == 0)
+        {
+            Debug.LogWarning("[SurveyManager] surveyPanels is null or empty in Awake");
+            return;
+        }
+
+        selectedOptions = new int[surveyPanels.Length];
+
+        foreach (var p in surveyPanels)
+        {
+            if (p != null)
+            {
+                Debug.Log("[SurveyManager] Hide panel in Awake: " + p.name);
+                p.SetActive(false);
+            }
+        }
+    }
+
+    private void Start()
+    {
+        Debug.Log("[SurveyManager] Start - waiting for trigger to start survey");
+        // Removed automatic StartSurvey()
+    }
+
+    public void StartSurvey()
+    {
+        Debug.Log("[SurveyManager] StartSurvey()");
+        currentSurveyIndex = 0;
+        ShowCurrentSurvey();
+    }
+
+    public void ChooseOption(int optionIndex)
+    {
+        Debug.Log("[SurveyManager] ChooseOption(" + optionIndex + ")");
+
+        if (currentSurveyIndex < 0 || currentSurveyIndex >= surveyPanels.Length)
+        {
+            Debug.LogWarning("[SurveyManager] invalid currentSurveyIndex: " + currentSurveyIndex);
+            return;
+        }
+
+        selectedOptions[currentSurveyIndex] = optionIndex;
+
+        // Hide current
+        if (surveyPanels[currentSurveyIndex] != null)
+        {
+            Debug.Log("[SurveyManager] Hide panel: " + surveyPanels[currentSurveyIndex].name);
+            surveyPanels[currentSurveyIndex].SetActive(false);
+        }
+
+        // Next
+        currentSurveyIndex++;
+
+        if (currentSurveyIndex < surveyPanels.Length)
+        {
+            ShowCurrentSurvey();
+        }
+        else
+        {
+            Debug.Log("[SurveyManager] All surveys finished");
+            // Save survey answers to ExperimentSession
+            ExperimentSession session = ExperimentSession.Instance;
+            if (session != null && selectedOptions.Length >= 5)
+            {
+                session.q1Choice = selectedOptions[0].ToString();
+                session.q2Choice = selectedOptions[1].ToString();
+                session.q3Choice = selectedOptions[2].ToString();
+                session.q4Choice = selectedOptions[3].ToString();
+                session.q5Choice = selectedOptions[4].ToString();
+                Debug.Log("[SurveyManager] Survey answers saved to ExperimentSession");
+            }
+
+            // Play end audio
+            if (stateManager != null)
+            {
+                stateManager.PlayAudio(endAudioIndex);
+                stateManager.MarkSurveyCompleted();  // Centralized completion handling
+            }
+
+            onSurveyFinished?.Invoke();
+        }
+    }
+
+    public void ShowCurrentSurvey()
+    {
+        if (currentSurveyIndex >= 0 && currentSurveyIndex < surveyPanels.Length)
+        {
+            var panel = surveyPanels[currentSurveyIndex];
+            if (panel != null)
+            {
+                Debug.Log("[SurveyManager] Show panel: " + panel.name);
+                panel.SetActive(true);
+            }
+            else
+            {
+                Debug.LogWarning("[SurveyManager] panel is null at index " + currentSurveyIndex);
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[SurveyManager] ShowCurrentSurvey with invalid index: " + currentSurveyIndex);
+        }
+    }
+}
