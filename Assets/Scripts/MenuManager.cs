@@ -229,9 +229,11 @@ public class MenuManager : MonoBehaviour
     /// <summary>
     /// Yes selected → send order, write CSV, go to Phase 3 (survey).
     /// </summary>
-    private void OnYesValueChanged(bool isOn)
+    public void OnYesValueChanged(bool isOn)
     {
        string debugMessage ="[MenuManager] OnYesValueChanged called, isOn={isOn}";
+
+        Debug.Log("ison");
 
         if (!isOn) return;  // only react when turned ON
 
@@ -240,6 +242,8 @@ public class MenuManager : MonoBehaviour
             Debug.LogError("[MenuManager] CRITICAL: StateManagement reference is NULL! Progression will fail.");
             return;
         }
+
+        Debug.Log("stage manager is not null");
 
         Debug.Log($"[MenuManager] Checking selectedFoodId: '{stateManager.selectedFoodId}'");
         if (string.IsNullOrEmpty(stateManager.selectedFoodId))
@@ -262,13 +266,14 @@ public class MenuManager : MonoBehaviour
         if (orderConfirmRoot != null) orderConfirmRoot.SetActive(false);
 
         // Inform StateManagement: ordering confirmed → go to Phase 3
-    
-     if (debugCanvasManager != null)
-    {
         stateManager.StartPhase3();
-        string debug = "startPhase3 called from OnYesValueChanged";
-        debugCanvasManager.SetDebugText(debug);
-    }
+        //string debug = "startPhase3 called from OnYesValueChanged";
+        //debugCanvasManager.SetDebugText(debug);
+
+        if (debugCanvasManager != null)
+        {
+            
+        }
         
 
         

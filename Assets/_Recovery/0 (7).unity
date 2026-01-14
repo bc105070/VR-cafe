@@ -3028,7 +3028,6 @@ MonoBehaviour:
   audioClips:
   - {fileID: 8300000, guid: b690d602c4ef343a6bc94f3c932272a5, type: 3}
   - {fileID: 8300000, guid: 8ba5dbc0c23104c429834c5675fd54fc, type: 3}
-  - {fileID: 8300000, guid: 33835bc264c2b4622aaa5343560bd985, type: 3}
   clipsVolume: 0.129
   postProcessingVolume: {fileID: 1675519152}
   menu: {fileID: 136218797}
@@ -3038,7 +3037,7 @@ MonoBehaviour:
   thankYou: {fileID: 0}
   menuManager: {fileID: 1675934557}
   surveyManager: {fileID: 2013991113}
-  csvWriter: {fileID: 0}
+  csvWriter: {fileID: 116436467}
   waiterVoicePlayer: {fileID: 5866666020241501793}
   agent: {fileID: 1355573622}
   participantID: 0
@@ -3050,8 +3049,6 @@ MonoBehaviour:
   isFoodSelected: 0
   isOrderingConfirmed: 0
   isSurveyCompleted: 0
-  agentDestinationSetter: {fileID: 1355573622}
-  confirmationAudio: {fileID: 8300000, guid: 33835bc264c2b4622aaa5343560bd985, type: 3}
 --- !u!4 &116436465
 Transform:
   m_ObjectHideFlags: 0
@@ -31243,7 +31240,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
-      value: 1
+      value: 6
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[1].m_Mode
@@ -31284,7 +31281,7 @@ PrefabInstance:
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 1675934556}
+      objectReference: {fileID: 1675934557}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[1].m_Target
       value: 
@@ -31363,7 +31360,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: 
+      value: OnYesValueChanged
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[1].m_MethodName
@@ -31403,7 +31400,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
-      value: UnityEngine.GameObject, UnityEngine
+      value: MenuManager, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[1].m_TargetAssemblyTypeName
@@ -31443,7 +31440,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_BoolArgument
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[1].m_Arguments.m_BoolArgument
@@ -31455,7 +31452,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
-      value: 
+      value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
     - target: {fileID: 8182325033161516267, guid: 5292db714b0f87045a7dfd9be93b1be5, type: 3}
       propertyPath: onValueChanged.m_PersistentCalls.m_Calls.Array.data[1].m_Arguments.m_ObjectArgumentAssemblyTypeName
@@ -35361,7 +35358,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 0.5
-  m_Speed: 1.5
+  m_Speed: 10.5
   m_Acceleration: 4
   avoidancePriority: 50
   m_AngularSpeed: 120
@@ -47921,8 +47918,6 @@ MonoBehaviour:
   isFoodSelected: 0
   isOrderingConfirmed: 0
   isSurveyCompleted: 0
-  agentDestinationSetter: {fileID: 0}
-  confirmationAudio: {fileID: 0}
 --- !u!4 &1769782372
 Transform:
   m_ObjectHideFlags: 0

@@ -60,15 +60,44 @@ public class StateManagement : MonoBehaviour
     public bool IsFoodSelected { get => isFoodSelected; set => isFoodSelected = value; }
     public bool IsOrderingConfirmed { get => isOrderingConfirmed; set => isOrderingConfirmed = value; }
     public bool IsSurveyCompleted { get => isSurveyCompleted; set => isSurveyCompleted = value; }
-    
+
+    public AgentDestinationSetter agentDestinationSetter;
+
+    public AudioClip confirmationAudio;
+
+    //public VoicePlayer voicePlayer;
+
     private void Start()
     {
         Debug.Log("StateManagement is alive!");
 
-        // if (debugCanvasManager != null)
-        // {
-        //     debugCanvasManager.SetDebugText("StateManagement is alive!");
-        // }
+        // AUTO-FIND CSVWriter if not assigned
+        if (csvWriter == null)
+        {
+            Debug.LogWarning("[StateManagement] CSVWriter not assigned in Inspector. Searching...");
+            
+            // Try to find it on the same GameObject
+            csvWriter = GetComponent<CSVWriter>();
+            
+            if (csvWriter == null)
+            {
+                // Try to find it anywhere in the scene
+                csvWriter = FindAnyObjectByType<CSVWriter>();
+            }
+            
+            if (csvWriter != null)
+            {
+                Debug.Log($"[StateManagement] ✓ Auto-found CSVWriter on: {csvWriter.gameObject.name}");
+            }
+            else
+            {
+                Debug.LogError("[StateManagement] ✗ No CSVWriter found in scene!");
+            }
+        }
+        else
+        {
+            Debug.Log($"[StateManagement] ✓ CSVWriter assigned: {csvWriter.gameObject.name}");
+        }
 
         // Participant ID is stored in PlayerPrefs (set by your login / parameter scene)
         if (!PlayerPrefs.HasKey("ParticipantID"))
@@ -211,10 +240,53 @@ public class StateManagement : MonoBehaviour
 
     public void StartPhase3()
     {
-            IsOrderingConfirmed = true;
-            string debugMessage ="[Phase 2] Yes button clicked! Order confirmed.";
+        IsOrderingConfirmed = true;
+        string debugMessage = "[Phase 2] Yes button clicked! Order confirmed.";
+        Debug.Log("Phase 3 started: Waiter will now play wrap-up.");
+
+        // Update ExperimentSession with selected food ID
+        ExperimentSession session = ExperimentSession.Instance;
+        if (session != null && !string.IsNullOrEmpty(selectedFoodId))
+        {
+            session.orderChoice = selectedFoodId;
+        }
+
+        SaveSessionData();
+        //PlayAudio(2);
+
+        // In StartPhase3():
+        if (confirmationAudio != null)
+        {
+            AudioSource audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+            }
+
+            audioSource.PlayOneShot(confirmationAudio, clipsVolume);
+            Debug.Log($"Playing confirmation audio: {confirmationAudio.name}");
+        }
+        else
+        {
+            Debug.LogWarning("[StateManagement] Confirmation audio not assigned!");
+        }
+
+        // 2) Mark completion + advance to Phase 4
+        IsSurveyCompleted = true;
+        if (currentPhase < 4)
+        {
             NextPhase();
-            Debug.Log("Phase 3 started: Waiter will now play wrap-up.");
+        }
+
+        // 3) Show end screen (if assigned) and save CSV
+        //SaveSessionData();
+        
+        // Optional: Clear agent sequence if assigned
+        if (agentDestinationSetter != null)
+        {
+            //agentDestinationSetter.currentSequence = null;
+            Debug.Log("Full sequence complete! Agent stays at destination.");
+        }
     }
 
     public IEnumerator StartSurveyAfterAudio()

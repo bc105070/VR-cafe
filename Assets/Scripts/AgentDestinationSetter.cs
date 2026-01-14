@@ -262,12 +262,12 @@ Debug.Log("Order Now clicked, starting Phase 2");
     yield return new WaitUntil(() => stateManager != null && stateManager.IsOrderingConfirmed);
     Debug.Log("[Phase 2] Yes button clicked! Order confirmed.");
     if (debugCanvasManager != null)
-        {
-            // set a variiable containing the index as a string
-           string debugMessage = "Phase 2]  Yes button (ordering confirmation)...";
+    {
+        // set a variiable containing the index as a string
+        string debugMessage = "Phase 2]  Yes button (ordering confirmation)...";
 
-            debugCanvasManager.SetDebugText(debugMessage);
-        }
+        debugCanvasManager.SetDebugText(debugMessage);
+    }
 // ✅ 新增：隐藏食物选择界面 - 統一隱藏
     //if (stateManager != null && stateManager.food != null)
       //  {
