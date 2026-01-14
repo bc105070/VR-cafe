@@ -29,6 +29,7 @@ public class StateManagement : MonoBehaviour
     public GameObject food;      // Menu_Order root
     public GameObject ordering;  // (optional) extra ordering UI
     public GameObject survey;    // Survey root
+    public GameObject thankYou;  // (optional) Thank-you / end screen root
 
     [Header("Managers")]
     public MenuManager menuManager;
@@ -59,16 +60,15 @@ public class StateManagement : MonoBehaviour
     public bool IsFoodSelected { get => isFoodSelected; set => isFoodSelected = value; }
     public bool IsOrderingConfirmed { get => isOrderingConfirmed; set => isOrderingConfirmed = value; }
     public bool IsSurveyCompleted { get => isSurveyCompleted; set => isSurveyCompleted = value; }
-
-    public DebugCanvasManager debugCanvasManager;
+    
     private void Start()
     {
         Debug.Log("StateManagement is alive!");
 
-        if (debugCanvasManager != null)
-        {
-            debugCanvasManager.SetDebugText("StateManagement is alive!");
-        }
+        // if (debugCanvasManager != null)
+        // {
+        //     debugCanvasManager.SetDebugText("StateManagement is alive!");
+        // }
 
         // Participant ID is stored in PlayerPrefs (set by your login / parameter scene)
         if (!PlayerPrefs.HasKey("ParticipantID"))
@@ -117,6 +117,7 @@ public class StateManagement : MonoBehaviour
         if (food != null) HideObject(food);
         if (ordering != null) HideObject(ordering);
         if (survey != null) HideObject(survey);
+        if (thankYou != null) HideObject(thankYou);
 
         // Initialize selectedOptions to have 5 entries (for 5 survey questions)
         selectedOptions = new int[5];
@@ -211,6 +212,7 @@ public class StateManagement : MonoBehaviour
     public void StartPhase3()
     {
             IsOrderingConfirmed = true;
+            string debugMessage ="[Phase 2] Yes button clicked! Order confirmed.";
             NextPhase();
             Debug.Log("Phase 3 started: Waiter will now play wrap-up.");
     }
@@ -223,19 +225,19 @@ public class StateManagement : MonoBehaviour
         if (agent == null)
         {
             agent = FindAnyObjectByType<AgentDestinationSetter>();
-            Debug.LogWarning($"[State] Agent reference was null. Auto-resolved agent={(agent == null ? "NULL" : agent.name)}");
+            
         }
 
         // 1. Play Wrap Up Audio (Index 3 = Aufwiedersehen)
         if (agent != null)
         {
             // Note: We play index 3 (End) instead of 2 (Survey)
-            Debug.Log($"[State] Playing wrap-up via agent.PlayVoiceAndWait(3). agent={agent.name}");
+           // Debug.Log($"[State] Playing wrap-up via agent.PlayVoiceAndWait(3). agent={agent.name}");
             yield return StartCoroutine(agent.PlayVoiceAndWait(3));
         }
         else
         {
-            Debug.LogError("[StateManagement] 'Agent' reference is missing! Cannot play audio/anim.");
+           // Debug.LogError("[StateManagement] 'Agent' reference is missing! Cannot play audio/anim.");
             yield return new WaitForSeconds(1f);
         }
 
@@ -255,17 +257,23 @@ public class StateManagement : MonoBehaviour
             NextPhase();
         }
 
+        if (currentPhase == 4)
+        {
+            Debug.Log("[State] Phase 4 reached (end screen). Showing Phase 4 UI if assigned.");
+            ShowUIForPhase(4);
+        }
+
         // 3. Save data immediately
-        Debug.Log("[State] Saving session data (skip-survey path)...");
+       // Debug.Log("[State] Saving session data (skip-survey path)...");
         SaveSessionData();
-        Debug.Log("[State] Experiment Data Saved (Survey Skipped).");
+        //Debug.Log("[State] Experiment Data Saved (Survey Skipped).");
     }
 
     public void MarkSurveyCompleted()
     {
         IsSurveyCompleted = true;
         NextPhase();
-        Debug.Log("Survey completed. Phase 4 (thank you) started.");
+        //Debug.Log("Survey completed. Phase 4 (thank you) started.");
 
         // Write final data to CSV (centralized in StateManagement)
         SaveSessionData();
@@ -299,11 +307,12 @@ public class StateManagement : MonoBehaviour
                 "ParticipantID",
                 "Condition",
                 "OrderChoice",
-                "Q1_Choice",
-                "Q2_Choice",
-                "Q3_Choice",
-                "Q4_Choice",
-                "Q5_Choice",
+                // Survey questions are currently disabled
+                // "Q1_Choice",
+                // "Q2_Choice",
+                // "Q3_Choice",
+                // "Q4_Choice",
+                // "Q5_Choice",
                 "Timestamp"
             };
 
@@ -325,11 +334,12 @@ public class StateManagement : MonoBehaviour
             { "ParticipantID", session.participantId ?? "" },
             { "Condition", session.condition ?? "" },
             { "OrderChoice", session.orderChoice ?? "" },
-            { "Q1_Choice", session.q1Choice ?? "" },
-            { "Q2_Choice", session.q2Choice ?? "" },
-            { "Q3_Choice", session.q3Choice ?? "" },
-            { "Q4_Choice", session.q4Choice ?? "" },
-            { "Q5_Choice", session.q5Choice ?? "" },
+            // Survey questions are currently disabled
+            // { "Q1_Choice", session.q1Choice ?? "" },
+            // { "Q2_Choice", session.q2Choice ?? "" },
+            // { "Q3_Choice", session.q3Choice ?? "" },
+            // { "Q4_Choice", session.q4Choice ?? "" },
+            // { "Q5_Choice", session.q5Choice ?? "" },
             { "Timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
         };
 
@@ -450,7 +460,7 @@ public class StateManagement : MonoBehaviour
                 ShowObject(survey);
                 break;
             case 4:
-                // thank-you only
+                ShowObject(thankYou);
                 break;
         }
     }
@@ -476,7 +486,7 @@ public class StateManagement : MonoBehaviour
                 ShowObject(survey);
                 break;
             case 4:
-                // thank-you only
+                ShowObject(thankYou);
                 break;
         }
     }

@@ -19,6 +19,7 @@ public class MenuManager : MonoBehaviour
     public Toggle yesToggle;               // Menu_Order/Order_Confirm/Yes
     public Toggle noToggle;                // Menu_Order/Order_Confirm/No
     public ToggleGroup confirmToggleGroup; // The group for Yes/No toggles
+    public DebugCanvasManager debugCanvasManager;
 
     // Optional: name of the CSV file. 
     public string fallbackCsvFileName = "experiment_data.csv";
@@ -230,7 +231,7 @@ public class MenuManager : MonoBehaviour
     /// </summary>
     private void OnYesValueChanged(bool isOn)
     {
-        Debug.Log($"[MenuManager] OnYesValueChanged called, isOn={isOn}");
+       string debugMessage ="[MenuManager] OnYesValueChanged called, isOn={isOn}";
 
         if (!isOn) return;  // only react when turned ON
 
@@ -261,10 +262,16 @@ public class MenuManager : MonoBehaviour
         if (orderConfirmRoot != null) orderConfirmRoot.SetActive(false);
 
         // Inform StateManagement: ordering confirmed → go to Phase 3
-        Debug.Log("[MenuManager] Calling stateManager.StartPhase3()...");
+    
+     if (debugCanvasManager != null)
+    {
         stateManager.StartPhase3();
+        string debug = "startPhase3 called from OnYesValueChanged";
+        debugCanvasManager.SetDebugText(debug);
+    }
+        
 
-        Debug.Log("[MenuManager] YES selected: order confirmed signal sent.");
+        
     }
 
     /// <summary>

@@ -30,8 +30,13 @@ public class AgentDestinationSetter : MonoBehaviour
     private Coroutine currentSequence;
     public StateManagement stateManager;
 
+    public DebugCanvasManager debugCanvasManager;
+
     void Start()
     {
+
+       
+
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
         
@@ -118,16 +123,35 @@ public class AgentDestinationSetter : MonoBehaviour
        // 新增这个辅助协程：负责播语音、开动画、动态等待
     public IEnumerator PlayVoiceAndWait(int index)
     {
+
+         if (debugCanvasManager != null)
+        {
+            // set a variiable containing the index as a string
+            string debugMessage = $"voice index {index}.";
+            debugCanvasManager.SetDebugText(debugMessage);
+        }
+
         // 1. 播放并获取长度
         float clipLength = 0f;
         // Be robust: if not assigned in Inspector (or Start hasn't set it yet), resolve it now.
+        voicePlayer = GetComponent<VoicePlayer>();
         if (voicePlayer == null)
         {
-            voicePlayer = GetComponent<VoicePlayer>();
-        }
+            Debug.LogWarning("VoicePlayer not found on this GameObject! Audio will not play.");
 
+            // NEW: Debug canvas output (same style)
+            if (debugCanvasManager != null)
+            {
+                string debugMessage = "[Agent] VoicePlayer was null in Start(), attempting to get it from component (GetComponent<VoicePlayer> returned null).";
+                debugCanvasManager.SetDebugText(debugMessage);
+            }
+        }
+        
+
+         
         if (voicePlayer != null)
         {
+          
             clipLength = voicePlayer.PlayVoice(index);
         }
         else
@@ -139,12 +163,27 @@ public class AgentDestinationSetter : MonoBehaviour
         if (animator != null) animator.SetBool("isTalking", true);
 
         // 3. 动态等待时长（如果语音很长就等语音，如果语音很短至少做2秒动作）
-        float waitTime = Mathf.Max(clipLength, 2f);
+    float waitTime = Mathf.Max(clipLength, 2f);
+
+    if (debugCanvasManager != null)
+    {
+        string debugMessage = $"[Agent] Waiting {waitTime:0.00}s (clipLength={clipLength:0.00}s, index={index}).";
+        debugCanvasManager.SetDebugText(debugMessage);
+    }
         yield return new WaitForSeconds(waitTime);
 
-        // 4. 关闭说话动画
-        if (animator != null) animator.SetBool("isTalking", false);
-        
+       // 4. 关闭说话动画
+    if (animator != null)
+    {
+        animator.SetBool("isTalking", false);
+
+        if (debugCanvasManager != null)
+        {
+            string debugMessage = $"[Agent] Talking animation OFF (voice index {index}).";
+            debugCanvasManager.SetDebugText(debugMessage);
+        }
+    }
+
         yield return new WaitForSeconds(0.2f); // 稍微缓冲一下
     }
 
@@ -158,7 +197,6 @@ public class AgentDestinationSetter : MonoBehaviour
 yield return new WaitForSeconds(delayBeforeWalkingToDestination);
 yield return StartCoroutine(WalkToDestinationCoroutine(destination, true));
 yield return StartCoroutine(WaitForArrival());
-
 
 Debug.Log($"[Agent] stateManager = {(stateManager == null ? "NULL" : "OK")}");
 if (stateManager != null)
@@ -179,6 +217,8 @@ else
     Debug.Log("[Agent] 调用 ShowUIForPhase(1)...");
     stateManager.ShowUIForPhase(1);  // 統一顯示Phase 1 UI
 }
+
+
 
 
 // 播欢迎语音(0)并动态等待
@@ -214,10 +254,20 @@ Debug.Log("Order Now clicked, starting Phase 2");
         yield return StartCoroutine(PlayVoiceAndWait(1));
 
            // ✅ 优化：等待 Yes 按钮点击（IsOrderingConfirmed）
-    Debug.Log("[Phase 2] Waiting for Yes button (ordering confirmation)...");
+          
+   
+
+     
+    //Debug.Log("[Phase 2] Waiting for Yes button (ordering confirmation)...");
     yield return new WaitUntil(() => stateManager != null && stateManager.IsOrderingConfirmed);
     Debug.Log("[Phase 2] Yes button clicked! Order confirmed.");
+    if (debugCanvasManager != null)
+        {
+            // set a variiable containing the index as a string
+           string debugMessage = "Phase 2]  Yes button (ordering confirmation)...";
 
+            debugCanvasManager.SetDebugText(debugMessage);
+        }
 // ✅ 新增：隐藏食物选择界面 - 統一隱藏
     //if (stateManager != null && stateManager.food != null)
       //  {
@@ -226,14 +276,26 @@ Debug.Log("Order Now clicked, starting Phase 2");
         //}
 
         // ================= Phase 3 & 4: Wrap up =================
-        // Skipping Survey: delegate wrap-up + save to StateManagement (single source of truth)
+        // Skipping Survey: play a final voice line, then save CSV
         if (stateManager != null)
         {
-            // Ensure StateManagement has a valid agent reference for PlayVoiceAndWait
-            if (stateManager.agent == null) stateManager.agent = this;
+            // 1) Play voice clip index 2 on THIS waiter
+            yield return StartCoroutine(PlayVoiceAndWait(2));
+            
+            
+                string debugMessage = "[Agent] Completed final voice line, proceeding to wrap-up.";
+            
 
-            Debug.Log("[Agent] Delegating wrap-up to StateManagement.StartSurveyAfterAudio().");
-            yield return StartCoroutine(stateManager.StartSurveyAfterAudio());
+            // 2) Mark completion + advance to Phase 4
+            stateManager.IsSurveyCompleted = true;
+            if (stateManager.currentPhase < 4)
+            {
+                stateManager.NextPhase();
+            }
+
+            // 3) Show end screen (if assigned) and save CSV
+            
+            stateManager.SaveSessionData();
         }
         else
         {

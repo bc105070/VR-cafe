@@ -3005,7 +3005,6 @@ GameObject:
   - component: {fileID: 116436464}
   - component: {fileID: 116436466}
   - component: {fileID: 116436467}
-  - component: {fileID: 116436468}
   m_Layer: 0
   m_Name: Controller
   m_TagString: Untagged
@@ -3049,7 +3048,7 @@ MonoBehaviour:
   isFoodSelected: 0
   isOrderingConfirmed: 0
   isSurveyCompleted: 0
-  debugCanvasManager: {fileID: 116436468}
+  debugCanvasManager: {fileID: 363214761}
 --- !u!4 &116436465
 Transform:
   m_ObjectHideFlags: 0
@@ -3102,19 +3101,6 @@ MonoBehaviour:
   includeParticipantID: 1
   saveToDesktopInEditor: 1
   useExternalStorageOnAndroid: 1
---- !u!114 &116436468
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 116436463}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c10c4388e52034b1c888c99295c1e815, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DebugCanvasManager
-  debugText: {fileID: 1132608672}
 --- !u!1001 &119825777
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -10067,6 +10053,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 363214760}
+  - component: {fileID: 363214761}
   m_Layer: 0
   m_Name: DebugScreen
   m_TagString: Untagged
@@ -10090,6 +10077,19 @@ Transform:
   - {fileID: 1849011474}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
+--- !u!114 &363214761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 363214759}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c10c4388e52034b1c888c99295c1e815, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DebugCanvasManager
+  debugText: {fileID: 1132608672}
 --- !u!1001 &367135623
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -35347,6 +35347,7 @@ MonoBehaviour:
   startSequenceOnStart: 1
   voicePlayer: {fileID: 0}
   stateManager: {fileID: 116436464}
+  debugCanvasManager: {fileID: 363214761}
 --- !u!195 &1355573623
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -61109,10 +61110,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VoicePlayer
   voiceClips:
-  - {fileID: 8300000, guid: a916d88d687794af08b1d686de0982dc, type: 3}
   - {fileID: 8300000, guid: 33835bc264c2b4622aaa5343560bd985, type: 3}
-  - {fileID: 8300000, guid: dfc59fa7739974911b078b8cc9522c78, type: 3}
-  - {fileID: 8300000, guid: 2427f1c7dfd3142f1962e3cf96d463ad, type: 3}
+  - {fileID: 8300000, guid: 33835bc264c2b4622aaa5343560bd985, type: 3}
+  - {fileID: 8300000, guid: 33835bc264c2b4622aaa5343560bd985, type: 3}
+  - {fileID: 8300000, guid: 33835bc264c2b4622aaa5343560bd985, type: 3}
 --- !u!1001 &7254745835211804738
 PrefabInstance:
   m_ObjectHideFlags: 0
