@@ -116,13 +116,23 @@ public class AgentDestinationSetter : MonoBehaviour
     }
 
        // 新增这个辅助协程：负责播语音、开动画、动态等待
-    private IEnumerator PlayVoiceAndWait(int index)
+    public IEnumerator PlayVoiceAndWait(int index)
     {
         // 1. 播放并获取长度
         float clipLength = 0f;
+        // Be robust: if not assigned in Inspector (or Start hasn't set it yet), resolve it now.
+        if (voicePlayer == null)
+        {
+            voicePlayer = GetComponent<VoicePlayer>();
+        }
+
         if (voicePlayer != null)
         {
             clipLength = voicePlayer.PlayVoice(index);
+        }
+        else
+        {
+            Debug.LogWarning("[Agent] VoicePlayer is missing. Cannot play voice clip.");
         }
 
         // 2. 开启说话动画
@@ -209,46 +219,29 @@ Debug.Log("Order Now clicked, starting Phase 2");
     Debug.Log("[Phase 2] Yes button clicked! Order confirmed.");
 
 // ✅ 新增：隐藏食物选择界面 - 統一隱藏
-    if (stateManager != null && stateManager.food != null)
+    //if (stateManager != null && stateManager.food != null)
+      //  {
+        //stateManager.HideObject(stateManager.food);
+        //Debug.Log("[Phase 2] Food menu hidden");
+        //}
+
+        // ================= Phase 3 & 4: Wrap up =================
+        // Skipping Survey: delegate wrap-up + save to StateManagement (single source of truth)
+        if (stateManager != null)
         {
-        stateManager.HideObject(stateManager.food);
-        Debug.Log("[Phase 2] Food menu hidden");
+            // Ensure StateManagement has a valid agent reference for PlayVoiceAndWait
+            if (stateManager.agent == null) stateManager.agent = this;
+
+            Debug.Log("[Agent] Delegating wrap-up to StateManagement.StartSurveyAfterAudio().");
+            yield return StartCoroutine(stateManager.StartSurveyAfterAudio());
         }
-
-        // ================= Phase 3: Survey =================
-        // 弹问卷 - 統一顯示Phase 3 UI
-        if (stateManager != null) stateManager.ShowUIForPhase(3);
-
-        // 播问卷提示(2)并动态等待
-        yield return StartCoroutine(PlayVoiceAndWait(2));
-
-        // 等待问卷完成
-        Debug.Log("Waiting for survey completion...");
-        while (stateManager != null && !stateManager.IsSurveyCompleted)
+        else
         {
-            yield return null;
+            Debug.LogError("[Agent] stateManager is NULL. Cannot run wrap-up/save.");
         }
-        Debug.Log("Survey completed, starting Phase 4");
-
-
-        // ================= Phase 4: Wrap up =================
-        yield return new WaitForSeconds(delayBeforeWalkingToDestination);
-        yield return StartCoroutine(WalkToDestinationCoroutine(destination, true));
-        yield return StartCoroutine(WaitForArrival());
-
-        // Phase 4: No UI to show, just play thank you audio
-
-        // 播感谢语音(3)并动态等待
-        yield return StartCoroutine(PlayVoiceAndWait(3));
-
-        yield return new WaitForSeconds(delayBeforeReturning);
-        isReturningToOrigin = true;
-        yield return StartCoroutine(TurnAndWalkTo(origin, false, turnLeftAnimationName));
-        yield return StartCoroutine(WaitForArrival());
-        isReturningToOrigin = false;
 
         currentSequence = null;
-        Debug.Log("Full sequence complete!");
+        Debug.Log("Full sequence complete! Agent stays at destination.");
     }
 
     private string ShowMenuWithDelay(float v)

@@ -34,8 +34,14 @@ public class StateManagement : MonoBehaviour
     public MenuManager menuManager;
     public SurveyManager surveyManager;
     public CSVWriter csvWriter;
+    
+    [Header("External References")]
+    public VoicePlayer waiterVoicePlayer; // (Optional: keep or remove if unused)
+    public AgentDestinationSetter agent; // Drag the Waiter/Robot here
 
     [Header("Status (Read Only in Inspector)")]
+
+
     public int participantID;
     public int condition;        // 1..4
     public int currentPhase;     // 1..4
@@ -198,54 +204,55 @@ public class StateManagement : MonoBehaviour
 
     public void StartPhase3()
     {
-        Debug.Log($"[State] StartPhase3 called. CurrentPhase = {currentPhase}");
-
-        if (currentPhase == 2)
-        {
             IsOrderingConfirmed = true;
             NextPhase();
-            Debug.Log("Phase 3 started: Survey.");
-
-            // Play ordering completion audio and start survey
-            StartCoroutine(StartSurveyAfterAudio());
-        }
-        else
-        {
-            Debug.LogWarning($"StartPhase3 ignored. Expected Phase 2, but currentPhase = {currentPhase}");
-        }
+            Debug.Log("Phase 3 started: Waiter will now play wrap-up.");
     }
 
     public IEnumerator StartSurveyAfterAudio()
     {
-        // Play audio for Phase 3 (ordering completion)
-        PlayAudioForCurrentPhase();
+        Debug.Log($"[State] StartSurveyAfterAudio: SKIPPING Survey. phase={currentPhase}, participant={participantID}, condition={condition}");
 
-        // Wait for audio to finish
-        AudioSource audioSource = GetComponent<AudioSource>();
-        if (audioSource != null && audioSource.clip != null)
+        // If agent ref wasn't wired, try to locate one to avoid hard failure.
+        if (agent == null)
         {
-            yield return new WaitForSeconds(audioSource.clip.length);
+            agent = FindAnyObjectByType<AgentDestinationSetter>();
+            Debug.LogWarning($"[State] Agent reference was null. Auto-resolved agent={(agent == null ? "NULL" : agent.name)}");
+        }
+
+        // 1. Play Wrap Up Audio (Index 3 = Aufwiedersehen)
+        if (agent != null)
+        {
+            // Note: We play index 3 (End) instead of 2 (Survey)
+            Debug.Log($"[State] Playing wrap-up via agent.PlayVoiceAndWait(3). agent={agent.name}");
+            yield return StartCoroutine(agent.PlayVoiceAndWait(3));
         }
         else
         {
-            yield return new WaitForSeconds(1f); // Fallback wait
+            Debug.LogError("[StateManagement] 'Agent' reference is missing! Cannot play audio/anim.");
+            yield return new WaitForSeconds(1f);
         }
 
-        // Show survey UI
-        if (survey != null)
+        // 2. Do NOT show survey UI
+        // if (survey != null) ShowObject(survey);
+        // if (surveyManager != null) surveyManager.StartSurvey();
+
+        // Mark flow as completed (skip-survey path)
+        if (!IsSurveyCompleted)
         {
-            ShowObject(survey);
+            IsSurveyCompleted = true;
         }
 
-        // Start survey
-        if (surveyManager != null)
+        // Advance to final phase if needed
+        if (currentPhase < 4)
         {
-            surveyManager.StartSurvey();
+            NextPhase();
         }
-        else
-        {
-            Debug.LogWarning("SurveyManager not assigned in StateManagement!");
-        }
+
+        // 3. Save data immediately
+        Debug.Log("[State] Saving session data (skip-survey path)...");
+        SaveSessionData();
+        Debug.Log("[State] Experiment Data Saved (Survey Skipped).");
     }
 
     public void MarkSurveyCompleted()

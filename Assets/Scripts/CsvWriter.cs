@@ -286,39 +286,9 @@ public class CSVWriter : MonoBehaviour
     /// <summary>
     /// Writes a row of data to the CSV file.
     /// </summary>
-    public void WriteRow(List<string> rowData)
-    {
-        if (!fileInitialized)
-        {
-            LogError("[FAIL] CSV not initialized! Call InitializeFile() first");
-            return;
-        }
-
-        if (rowData == null)
-        {
-            LogError("[FAIL] Row data is null!");
-            return;
-        }
-
-        if (rowData.Count != headers.Count)
-        {
-            LogWarning($"[WARN] Column count: {rowData.Count}/{headers.Count}");
-        }
-
-        try
-        {
-            string line = FormatCSVLine(rowData);
-            File.AppendAllText(currentFilePath, line + "\n");
-
-            FileInfo fi = new FileInfo(currentFilePath);
-            LogMessage($"[OK] Row written. File: {fi.Length} bytes");
-        }
-        catch (Exception e)
-        {
-            LogError($"[FAIL] Write failed: {e.Message}");
-            LogError($"Type: {e.GetType().Name}");
-        }
-    }
+    // NOTE: List-based overload is intentionally disabled.
+    // This project writes CSV rows by header name via Dictionary to avoid column-order bugs.
+    // public void WriteRow(List<string> rowData) { ... }
 
     /// <summary>
     /// Writes a row using a dictionary (matches values to header names).
@@ -352,19 +322,31 @@ public class CSVWriter : MonoBehaviour
             }
         }
 
-        WriteRow(orderedData);
+        if (orderedData.Count != headers.Count)
+        {
+            LogWarning($"[WARN] Column count: {orderedData.Count}/{headers.Count}");
+        }
+
+        try
+        {
+            string line = FormatCSVLine(orderedData);
+            File.AppendAllText(currentFilePath, line + "\n");
+
+            FileInfo fi = new FileInfo(currentFilePath);
+            LogMessage($"[OK] Row written. File: {fi.Length} bytes");
+        }
+        catch (Exception e)
+        {
+            LogError($"[FAIL] Write failed: {e.Message}");
+            LogError($"Type: {e.GetType().Name}");
+        }
     }
 
     /// <summary>
     /// Appends multiple rows at once.
     /// </summary>
-    public void WriteRows(List<List<string>> rows)
-    {
-        foreach (var row in rows)
-        {
-            WriteRow(row);
-        }
-    }
+    // NOTE: Batch row writing is intentionally disabled to keep a single row-writing API surface.
+    // public void WriteRows(List<List<string>> rows) { ... }
 
     /// <summary>
     /// Formats a list of values into a properly escaped CSV line.

@@ -236,13 +236,14 @@ public class MenuManager : MonoBehaviour
 
         if (stateManager == null)
         {
-            Debug.LogError("[MenuManager] StateManagement reference is null!");
+            Debug.LogError("[MenuManager] CRITICAL: StateManagement reference is NULL! Progression will fail.");
             return;
         }
 
+        Debug.Log($"[MenuManager] Checking selectedFoodId: '{stateManager.selectedFoodId}'");
         if (string.IsNullOrEmpty(stateManager.selectedFoodId))
         {
-            Debug.LogWarning("[MenuManager] Yes clicked but no food selected.");
+            Debug.LogWarning("[MenuManager] Yes clicked but no food selected. selectedFoodId is empty.");
             return;
         }
 
@@ -260,9 +261,10 @@ public class MenuManager : MonoBehaviour
         if (orderConfirmRoot != null) orderConfirmRoot.SetActive(false);
 
         // Inform StateManagement: ordering confirmed → go to Phase 3
+        Debug.Log("[MenuManager] Calling stateManager.StartPhase3()...");
         stateManager.StartPhase3();
 
-        Debug.Log("[MenuManager] YES selected: order confirmed.");
+        Debug.Log("[MenuManager] YES selected: order confirmed signal sent.");
     }
 
     /// <summary>
