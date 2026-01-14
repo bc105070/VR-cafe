@@ -3049,7 +3049,7 @@ MonoBehaviour:
   isFoodSelected: 0
   isOrderingConfirmed: 0
   isSurveyCompleted: 0
-  debugCanvasManager: {fileID: 0}
+  debugCanvasManager: {fileID: 116436468}
 --- !u!4 &116436465
 Transform:
   m_ObjectHideFlags: 0
