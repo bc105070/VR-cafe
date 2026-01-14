@@ -60,9 +60,15 @@ public class StateManagement : MonoBehaviour
     public bool IsOrderingConfirmed { get => isOrderingConfirmed; set => isOrderingConfirmed = value; }
     public bool IsSurveyCompleted { get => isSurveyCompleted; set => isSurveyCompleted = value; }
 
+    public DebugCanvasManager debugCanvasManager;
     private void Start()
     {
         Debug.Log("StateManagement is alive!");
+
+        if (debugCanvasManager != null)
+        {
+            debugCanvasManager.SetDebugText("StateManagement is alive!");
+        }
 
         // Participant ID is stored in PlayerPrefs (set by your login / parameter scene)
         if (!PlayerPrefs.HasKey("ParticipantID"))
