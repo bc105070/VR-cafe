@@ -4,10 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 
-/// <summary>
-/// Manages global state: participant ID/condition, phases,
-/// and flags for AgentDestinationSetter & MenuManager.
-/// </summary>
+[RequireComponent(typeof(CSVWriter))] // Ensure CSVWriter exists
 public class StateManagement : MonoBehaviour
 {
     [Header("Configuration")]
@@ -34,7 +31,22 @@ public class StateManagement : MonoBehaviour
     [Header("Managers")]
     public MenuManager menuManager;
     public SurveyManager surveyManager;
-    public CSVWriter csvWriter;
+    
+    [SerializeField, Tooltip("Auto-assigned if on same GameObject")]
+    private CSVWriter _csvWriter;
+    
+    // Lazy-loading property
+    private CSVWriter csvWriter
+    {
+        get
+        {
+            if (_csvWriter == null)
+            {
+                _csvWriter = GetComponent<CSVWriter>();
+            }
+            return _csvWriter;
+        }
+    }
     
     [Header("External References")]
     public VoicePlayer waiterVoicePlayer; // (Optional: keep or remove if unused)
@@ -67,22 +79,45 @@ public class StateManagement : MonoBehaviour
 
     //public VoicePlayer voicePlayer;
 
+    private void Awake()
+    {
+        Debug.Log($"[StateManagement] Awake on '{gameObject.name}'");
+        
+        // Force initialization
+        if (_csvWriter == null)
+        {
+            _csvWriter = GetComponent<CSVWriter>();
+        }
+        
+        if (_csvWriter == null)
+        {
+            Debug.LogError("[StateManagement] CRITICAL: CSVWriter not found! This component is required.");
+        }
+        else
+        {
+            Debug.Log($"[StateManagement] ✓ CSVWriter ready: {_csvWriter.gameObject.name}");
+        }
+    }
+
     private void Start()
     {
         Debug.Log("StateManagement is alive!");
-
-        // AUTO-FIND CSVWriter if not assigned
-        if (csvWriter == null)
+        
+        // Verify CSVWriter (use property for reading)
+        if (csvWriter != null)
         {
-            Debug.LogWarning("[StateManagement] CSVWriter not assigned in Inspector. Searching...");
+            Debug.Log($"[StateManagement] ✓ CSVWriter confirmed: {csvWriter.gameObject.name}");
+        }
+        else
+        {
+            Debug.LogError("[StateManagement] ✗ CSVWriter is NULL in Start()!");
             
-            // Try to find it on the same GameObject
-            csvWriter = GetComponent<CSVWriter>();
+            // Try to auto-find (assign to backing field)
+            _csvWriter = GetComponent<CSVWriter>();
             
-            if (csvWriter == null)
+            if (_csvWriter == null)
             {
-                // Try to find it anywhere in the scene
-                csvWriter = FindAnyObjectByType<CSVWriter>();
+                _csvWriter = FindAnyObjectByType<CSVWriter>();
             }
             
             if (csvWriter != null)
@@ -94,12 +129,8 @@ public class StateManagement : MonoBehaviour
                 Debug.LogError("[StateManagement] ✗ No CSVWriter found in scene!");
             }
         }
-        else
-        {
-            Debug.Log($"[StateManagement] ✓ CSVWriter assigned: {csvWriter.gameObject.name}");
-        }
 
-        // Participant ID is stored in PlayerPrefs (set by your login / parameter scene)
+        // Participant ID is stored in PlayerPrefs
         if (!PlayerPrefs.HasKey("ParticipantID"))
         {
             Debug.LogWarning("ParticipantID not found in PlayerPrefs. Using default value 1. " +
@@ -112,7 +143,7 @@ public class StateManagement : MonoBehaviour
             participantID = PlayerPrefs.GetInt("ParticipantID");
         }
 
-        // Get condition from PlayerPrefs (should be set by your parameter scene)
+        // Get condition from PlayerPrefs
         if (!PlayerPrefs.HasKey("Condition"))
         {
             Debug.LogWarning("Condition not found in PlayerPrefs. Using default value 1. " +
@@ -148,7 +179,7 @@ public class StateManagement : MonoBehaviour
         if (survey != null) HideObject(survey);
         if (thankYou != null) HideObject(thankYou);
 
-        // Initialize selectedOptions to have 5 entries (for 5 survey questions)
+        // Initialize selectedOptions to have 5 entries
         selectedOptions = new int[5];
     }
 
@@ -462,6 +493,12 @@ public class StateManagement : MonoBehaviour
 
     private void OnValidate()
     {
+        // Auto-assign in Editor
+        if (_csvWriter == null && Application.isEditor)
+        {
+            _csvWriter = GetComponent<CSVWriter>();
+        }
+        
         AudioSource audioSource = GetComponent<AudioSource>();
         if (audioSource != null)
         {
