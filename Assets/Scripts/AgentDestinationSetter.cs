@@ -134,18 +134,19 @@ public class AgentDestinationSetter : MonoBehaviour
         // 1. 播放并获取长度
         float clipLength = 0f;
         // Be robust: if not assigned in Inspector (or Start hasn't set it yet), resolve it now.
-        voicePlayer = GetComponent<VoicePlayer>();
-        if (voicePlayer == null)
-        {
-            Debug.LogWarning("VoicePlayer not found on this GameObject! Audio will not play.");
+        if (voicePlayer == null) voicePlayer = GetComponent<VoicePlayer>();
+        
+        //if (voicePlayer == null)
+        //{
+        //    Debug.LogWarning("VoicePlayer not found on this GameObject! Audio will not play.");
 
             // NEW: Debug canvas output (same style)
-            if (debugCanvasManager != null)
-            {
-                string debugMessage = "[Agent] VoicePlayer was null in Start(), attempting to get it from component (GetComponent<VoicePlayer> returned null).";
-                debugCanvasManager.SetDebugText(debugMessage);
-            }
-        }
+        //    if (debugCanvasManager != null)
+        //    {
+        //        string debugMessage = "[Agent] VoicePlayer was null in Start(), attempting to get it from component (GetComponent<VoicePlayer> returned null).";
+        //        debugCanvasManager.SetDebugText(debugMessage);
+        //    }
+        //}
         
 
          
@@ -268,6 +269,7 @@ Debug.Log("Order Now clicked, starting Phase 2");
 
         debugCanvasManager.SetDebugText(debugMessage);
     }
+    
 // ✅ 新增：隐藏食物选择界面 - 統一隱藏
     //if (stateManager != null && stateManager.food != null)
       //  {
@@ -277,14 +279,29 @@ Debug.Log("Order Now clicked, starting Phase 2");
 
         // ================= Phase 3 & 4: Wrap up =================
         // Skipping Survey: play a final voice line, then save CSV
+
         if (stateManager != null)
         {
+            // 1) Play confirmation audio from StateManagement (not waiter's voice)
+    stateManager.PlayConfirmationAudio();
+    
+    // 2) Wait for the audio to finish
+    float audioLength = stateManager.GetConfirmationAudioLength();
+    if (audioLength > 0)
+    {
+        yield return new WaitForSeconds(audioLength);
+    }
+    
+    Debug.Log("[Agent] Confirmation audio finished, proceeding to wrap-up.");
+    
+    if (debugCanvasManager != null)
+    {
+        debugCanvasManager.SetDebugText("[Agent] Confirmation audio finished, now saving CSV...");
+    }
             // 1) Play voice clip index 2 on THIS waiter
-            yield return StartCoroutine(PlayVoiceAndWait(2));
+            //yield return StartCoroutine(PlayVoiceAndWait(2));
             
-            
-                string debugMessage = "[Agent] Completed final voice line, proceeding to wrap-up.";
-            
+    
 
             // 2) Mark completion + advance to Phase 4
             stateManager.IsSurveyCompleted = true;

@@ -600,5 +600,36 @@ public class StateManagement : MonoBehaviour
         }
     }
 
+public void PlayConfirmationAudio()
+{
+    if (confirmationAudio == null)
+    {
+        Debug.LogWarning("[StateManagement] Confirmation audio not assigned!");
+        return;
+    }
+
+    AudioSource audioSource = GetComponent<AudioSource>();
+    if (audioSource == null)
+    {
+        audioSource = gameObject.AddComponent<AudioSource>();
+    }
+
+    audioSource.PlayOneShot(confirmationAudio, clipsVolume);
+    Debug.Log($"[StateManagement] Playing confirmation audio: {confirmationAudio.name}");
+}
+
+/// <summary>
+/// Returns the length of the confirmation audio in seconds (for waiting).
+/// Returns 0 if not assigned.
+/// </summary>
+public float GetConfirmationAudioLength()
+{
+    if (confirmationAudio == null)
+    {
+        Debug.LogWarning("[StateManagement] Confirmation audio not assigned, returning 0 length.");
+        return 0f;
+    }
+    return confirmationAudio.length;
+}
     #endregion
 }
