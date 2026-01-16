@@ -10063,7 +10063,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &363214760
 Transform:
   m_ObjectHideFlags: 0
@@ -35421,7 +35421,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ConfirmationAudioPlayer
   confirmationClip: {fileID: 8300000, guid: e2aaa5a4853b341cd97eb95cfc2cb311, type: 3}
-  volume: 0.7
+  volume: 1
 --- !u!4 &1356685433
 Transform:
   m_ObjectHideFlags: 0

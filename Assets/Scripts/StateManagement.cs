@@ -308,7 +308,7 @@ public class StateManagement : MonoBehaviour
             session.orderChoice = selectedFoodId;
         }
 
-        SaveSessionData();
+        
 
         if (ConfirmationAudioPlayer.Instance != null)
         {
@@ -318,6 +318,8 @@ public class StateManagement : MonoBehaviour
         {
             Debug.LogWarning("[StateManagement] ConfirmationAudioPlayer.Instance is NULL! No ConfirmationAudioPlayer in scene.");
         }
+
+        SaveSessionData();
 
         IsSurveyCompleted = true;
         if (currentPhase < 4)
