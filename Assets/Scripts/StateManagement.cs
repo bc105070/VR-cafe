@@ -70,6 +70,35 @@ public class StateManagement : MonoBehaviour
     public bool IsOrderingConfirmed { get => isOrderingConfirmed; set => isOrderingConfirmed = value; }
     public bool IsSurveyCompleted { get => isSurveyCompleted; set => isSurveyCompleted = value; }
 
+    // Hardcoded participant-to-condition mapping
+    private static readonly Dictionary<int, int> participantConditions = new Dictionary<int, int>
+    {
+        { 1, 1 },
+        { 2, 2 },
+        { 3, 3 },
+        { 4, 4 },
+        { 5, 1 },
+        { 6, 2 },
+        { 7, 3 },
+        { 8, 4 },
+        { 9, 1 },
+        { 10, 2 },
+        { 11, 3 },
+        { 12, 4 },
+        { 13, 1 },
+        { 14, 2 },
+        { 15, 3 },
+        { 16, 4 },
+        { 17, 1 },
+        { 18, 2 },
+        { 19, 3 },
+        { 20, 4 },
+        { 21, 1 },
+        { 22, 2 },
+        { 23, 3 },
+        { 24, 4 }
+    };
+
     private void Awake()
     {
         Debug.Log($"[StateManagement] ========== AWAKE ==========");
@@ -170,8 +199,8 @@ public class StateManagement : MonoBehaviour
             Debug.Log($"[StateManagement] ParticipantID loaded from PlayerPrefs: {participantID}");
         }
 
-        // Read condition from CSV based on ParticipantID
-        condition = ReadConditionFromCSV(participantID);
+        // Get condition from hardcoded dictionary
+        condition = GetConditionForParticipant(participantID);
         
         // Save it to PlayerPrefs for consistency
         PlayerPrefs.SetInt("Condition", condition);
@@ -208,45 +237,56 @@ public class StateManagement : MonoBehaviour
 
     public void ApplyConditionSettings()
     {
-        Debug.Log($"Applying settings for Condition {condition}");
+        Debug.Log($"[StateManagement] Applying settings for Condition {condition}");
 
         if (postProcessingVolume == null)
         {
-            Debug.LogWarning("No Post Processing Volume assigned!");
+            Debug.LogError("[StateManagement] ⚠️ No Post Processing Volume assigned!");
             return;
         }
+
+        Debug.Log($"[StateManagement] Post-Processing Volume found: {postProcessingVolume.name}");
 
         UnityEngine.Rendering.Universal.ColorAdjustments colorAdjustments;
         if (!postProcessingVolume.profile.TryGet(out colorAdjustments))
         {
-            Debug.LogError("ColorAdjustments not found in volume profile!");
+            Debug.LogError("[StateManagement] ⚠️ ColorAdjustments not found in volume profile!");
             return;
         }
 
         UnityEngine.Rendering.Universal.WhiteBalance whiteBalance;
         if (!postProcessingVolume.profile.TryGet(out whiteBalance))
         {
-            Debug.LogError("WhiteBalance not found in volume profile!");
+            Debug.LogError("[StateManagement] ⚠️ WhiteBalance not found in volume profile!");
             return;
         }
+
+        Debug.Log($"[StateManagement] ✓ Found ColorAdjustments and WhiteBalance");
 
         switch (condition)
         {
             case 1:
                 PlayAudio(0);
                 whiteBalance.temperature.value = -20f;
+                Debug.Log("[StateManagement] ✓ Condition 1: Audio 0, Temperature -20");
                 break;
             case 2:
                 PlayAudio(0);
                 whiteBalance.temperature.value = 20f;
+                Debug.Log("[StateManagement] ✓ Condition 2: Audio 0, Temperature +20");
                 break;
             case 3:
                 PlayAudio(1);
                 whiteBalance.temperature.value = -20f;
+                Debug.Log("[StateManagement] ✓ Condition 3: Audio 1, Temperature -20");
                 break;
             case 4:
                 PlayAudio(1);
                 whiteBalance.temperature.value = 20f;
+                Debug.Log("[StateManagement] ✓ Condition 4: Audio 1, Temperature +20");
+                break;
+            default:
+                Debug.LogWarning($"[StateManagement] ⚠️ Unknown condition: {condition}. Using defaults.");
                 break;
         }
 
@@ -546,60 +586,22 @@ public class StateManagement : MonoBehaviour
 
     #endregion
 
-    #region CSV Handling
+    #region Participant-Condition Mapping
 
     /// <summary>
-    /// Reads the condition for a given participant ID from the CSV file.
-    /// CSV Format: ParticipantID,Condition
-    /// Example:
-    /// 1,1
-    /// 2,3
-    /// 3,2
+    /// Gets the condition for a given participant ID from the hardcoded dictionary.
+    /// Returns 1 as default if participant ID is not found.
     /// </summary>
-    private int ReadConditionFromCSV(int participantID)
+    private int GetConditionForParticipant(int participantID)
     {
-        string csvPath = System.IO.Path.Combine(Application.streamingAssetsPath, participantsCsvName);
-        
-        Debug.Log($"[StateManagement] Looking for CSV at: {csvPath}");
-        
-        if (!System.IO.File.Exists(csvPath))
+        if (participantConditions.TryGetValue(participantID, out int mappedCondition))
         {
-            Debug.LogError($"[StateManagement] CSV file not found at: {csvPath}. Using default condition 1.");
-            return 1;
+            Debug.Log($"[StateManagement] ✓ Participant {participantID} → Condition {mappedCondition}");
+            return mappedCondition;
         }
-        
-        try
+        else
         {
-            string[] lines = System.IO.File.ReadAllLines(csvPath);
-            
-            // Skip header row (index 0)
-            for (int i = 1; i < lines.Length; i++)
-            {
-                string line = lines[i].Trim();
-                if (string.IsNullOrEmpty(line)) continue;
-                
-                string[] parts = line.Split(',');
-                
-                if (parts.Length >= 2)
-                {
-                    if (int.TryParse(parts[0].Trim(), out int csvParticipantID) &&
-                        int.TryParse(parts[1].Trim(), out int csvCondition))
-                    {
-                        if (csvParticipantID == participantID)
-                        {
-                            Debug.Log($"[StateManagement] ✓ Found Participant {participantID} in CSV with Condition {csvCondition}");
-                            return csvCondition;
-                        }
-                    }
-                }
-            }
-            
-            Debug.LogWarning($"[StateManagement] Participant {participantID} not found in CSV. Using default condition 1.");
-            return 1;
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogError($"[StateManagement] Error reading CSV: {ex.Message}");
+            Debug.LogWarning($"[StateManagement] ⚠️ Participant {participantID} not found in mapping. Using default condition 1.");
             return 1;
         }
     }
