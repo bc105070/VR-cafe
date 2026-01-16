@@ -129,7 +129,6 @@ public class StateManagement : MonoBehaviour
     {
         Debug.Log("StateManagement is alive!");
         
-
         // Verify CSVWriter (use property for reading)
         if (csvWriter != null)
         {
@@ -168,20 +167,15 @@ public class StateManagement : MonoBehaviour
         else
         {
             participantID = PlayerPrefs.GetInt("ParticipantID");
+            Debug.Log($"[StateManagement] ParticipantID loaded from PlayerPrefs: {participantID}");
         }
 
-        // Get condition from PlayerPrefs
-        if (!PlayerPrefs.HasKey("Condition"))
-        {
-            Debug.LogWarning("Condition not found in PlayerPrefs. Using default value 1. " +
-                             "Please set Condition using your login/parameter scene.");
-            condition = 1;
-            PlayerPrefs.SetInt("Condition", condition);
-        }
-        else
-        {
-            condition = PlayerPrefs.GetInt("Condition");
-        }
+        // Read condition from CSV based on ParticipantID
+        condition = ReadConditionFromCSV(participantID);
+        
+        // Save it to PlayerPrefs for consistency
+        PlayerPrefs.SetInt("Condition", condition);
+        PlayerPrefs.Save();
 
         // Start at Phase 1
         currentPhase = 1;
@@ -547,6 +541,66 @@ public class StateManagement : MonoBehaviour
             case 4:
                 ShowObject(thankYou);
                 break;
+        }
+    }
+
+    #endregion
+
+    #region CSV Handling
+
+    /// <summary>
+    /// Reads the condition for a given participant ID from the CSV file.
+    /// CSV Format: ParticipantID,Condition
+    /// Example:
+    /// 1,1
+    /// 2,3
+    /// 3,2
+    /// </summary>
+    private int ReadConditionFromCSV(int participantID)
+    {
+        string csvPath = System.IO.Path.Combine(Application.streamingAssetsPath, participantsCsvName);
+        
+        Debug.Log($"[StateManagement] Looking for CSV at: {csvPath}");
+        
+        if (!System.IO.File.Exists(csvPath))
+        {
+            Debug.LogError($"[StateManagement] CSV file not found at: {csvPath}. Using default condition 1.");
+            return 1;
+        }
+        
+        try
+        {
+            string[] lines = System.IO.File.ReadAllLines(csvPath);
+            
+            // Skip header row (index 0)
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string line = lines[i].Trim();
+                if (string.IsNullOrEmpty(line)) continue;
+                
+                string[] parts = line.Split(',');
+                
+                if (parts.Length >= 2)
+                {
+                    if (int.TryParse(parts[0].Trim(), out int csvParticipantID) &&
+                        int.TryParse(parts[1].Trim(), out int csvCondition))
+                    {
+                        if (csvParticipantID == participantID)
+                        {
+                            Debug.Log($"[StateManagement] ✓ Found Participant {participantID} in CSV with Condition {csvCondition}");
+                            return csvCondition;
+                        }
+                    }
+                }
+            }
+            
+            Debug.LogWarning($"[StateManagement] Participant {participantID} not found in CSV. Using default condition 1.");
+            return 1;
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[StateManagement] Error reading CSV: {ex.Message}");
+            return 1;
         }
     }
 
