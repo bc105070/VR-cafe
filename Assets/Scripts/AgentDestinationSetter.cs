@@ -220,8 +220,6 @@ else
 }
 
 
-
-
 // 播欢迎语音(0)并动态等待
 yield return StartCoroutine(PlayVoiceAndWait(0));
 
@@ -282,26 +280,30 @@ Debug.Log("Order Now clicked, starting Phase 2");
 
         if (stateManager != null)
         {
-            // 1) Play confirmation audio from StateManagement (not waiter's voice)
-    stateManager.PlayConfirmationAudio();
-    
-    // 2) Wait for the audio to finish
-    float audioLength = stateManager.GetConfirmationAudioLength();
-    if (audioLength > 0)
-    {
-        yield return new WaitForSeconds(audioLength);
-    }
-    
-    Debug.Log("[Agent] Confirmation audio finished, proceeding to wrap-up.");
-    
-    if (debugCanvasManager != null)
-    {
-        debugCanvasManager.SetDebugText("[Agent] Confirmation audio finished, now saving CSV...");
-    }
-            // 1) Play voice clip index 2 on THIS waiter
-            //yield return StartCoroutine(PlayVoiceAndWait(2));
-            
-    
+            // ✅ Use ConfirmationAudioPlayer instead of StateManagement methods
+            if (stateManager.confirmationAudioPlayer != null)
+            {
+                // 1) Play confirmation audio
+                stateManager.confirmationAudioPlayer.PlayConfirmation();
+                
+                // 2) Wait for the audio to finish
+                float audioLength = stateManager.confirmationAudioPlayer.GetClipLength();
+                if (audioLength > 0)
+                {
+                    yield return new WaitForSeconds(audioLength);
+                }
+                
+                Debug.Log("[Agent] Confirmation audio finished, proceeding to wrap-up.");
+                
+                if (debugCanvasManager != null)
+                {
+                    debugCanvasManager.SetDebugText("[Agent] Confirmation audio.finished, now saving CSV...");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[Agent] ConfirmationAudioPlayer not assigned in StateManagement!");
+            }
 
             // 2) Mark completion + advance to Phase 4
             stateManager.IsSurveyCompleted = true;
@@ -311,7 +313,6 @@ Debug.Log("Order Now clicked, starting Phase 2");
             }
 
             // 3) Show end screen (if assigned) and save CSV
-            
             stateManager.SaveSessionData();
         }
         else
@@ -348,11 +349,16 @@ Debug.Log("Order Now clicked, starting Phase 2");
         if (animator != null)
         {
             animator.SetBool("isTalking", true);
+
+            // if (stateManager != null)
+            // {
+            //     stateManager.PlayAudioForCurrentPhase();
+            // }
             
-            // Play audio using cached reference
-            if (stateManager != null)
+            if (voicePlayer != null)
             {
-                stateManager.PlayAudioForCurrentPhase();
+                float clipLength = voicePlayer.PlayVoice(0); // Or appropriate index
+                talkingDuration = Mathf.Max(clipLength, talkingDuration);
             }
             
             float duration = talkingDuration;

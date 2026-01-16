@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System;
+using System.Threading.Tasks;
 
 /// <summary>
-/// Writes CSV data to persistent storage.
+/// Writes CSV data to persistent storage asynchronously.
 /// Works across Editor, Standalone builds, and Android builds.
 /// Files are saved to Application.persistentDataPath for write access on all platforms.
 /// </summary>
@@ -33,6 +34,11 @@ public class CSVWriter : MonoBehaviour
     private List<string> headers = new List<string>();
     private bool fileInitialized = false;
 
+    // Queue for pending write operations
+    private Queue<string> writeQueue = new Queue<string>();
+    private bool isWriting = false;
+    private readonly object lockObject = new object();
+
     void Awake()
     {
         Debug.Log("[CSVWriter] ========== AWAKE ==========");
@@ -54,13 +60,25 @@ public class CSVWriter : MonoBehaviour
         string testPath = GetSaveDirectory();
         LogMessage($"Save directory: {testPath}");
 
-        TestWritePermissions();
+        TestWritePermissionsAsync();
+    }
+
+    void OnDestroy()
+    {
+        // Flush any remaining writes before destroying
+        FlushPendingWrites();
+    }
+
+    void OnApplicationQuit()
+    {
+        // Ensure all writes complete before quitting
+        FlushPendingWrites();
     }
 
     /// <summary>
-    /// Tests if we have write permissions to the target directory.
+    /// Tests if we have write permissions to the target directory (async).
     /// </summary>
-    private void TestWritePermissions()
+    private async void TestWritePermissionsAsync()
     {
         try
         {
@@ -70,11 +88,11 @@ public class CSVWriter : MonoBehaviour
             LogMessage("Testing write permissions...");
             LogMessage($"Test file path: {testFile}");
 
-            File.WriteAllText(testFile, "test");
+            await Task.Run(() => File.WriteAllText(testFile, "test"));
 
             if (File.Exists(testFile))
             {
-                File.Delete(testFile);
+                await Task.Run(() => File.Delete(testFile));
                 LogMessage("[OK] Write permissions verified");
             }
             else
@@ -201,9 +219,9 @@ public class CSVWriter : MonoBehaviour
     }
 
     /// <summary>
-    /// Initializes a new CSV file with headers.
+    /// Initializes a new CSV file with headers (async).
     /// </summary>
-    public void InitializeFile(List<string> columnHeaders, int participantID = -1)
+    public async void InitializeFile(List<string> columnHeaders, int participantID = -1)
     {
         Debug.Log("[CSVWriter] ========== INITIALIZE FILE ==========");
         LogMessage("=== INITIALIZING CSV FILE ===");
@@ -228,7 +246,7 @@ public class CSVWriter : MonoBehaviour
 
         try
         {
-            bool fileExists = File.Exists(currentFilePath);
+            bool fileExists = await Task.Run(() => File.Exists(currentFilePath));
             LogMessage($"File exists: {fileExists}");
 
             if (!fileExists)
@@ -236,13 +254,14 @@ public class CSVWriter : MonoBehaviour
                 string headerLine = FormatCSVLine(headers);
                 LogMessage($"Writing headers: {headerLine}");
 
-                File.WriteAllText(currentFilePath, headerLine + "\n");
+                await Task.Run(() => File.WriteAllText(currentFilePath, headerLine + "\n"));
 
-                if (File.Exists(currentFilePath))
+                bool checkExists = await Task.Run(() => File.Exists(currentFilePath));
+                if (checkExists)
                 {
-                    FileInfo fi = new FileInfo(currentFilePath);
-                    LogMessage($"[OK] File created: {fi.Length} bytes");
-                    LogMessage($"[OK] Full path: {fi.FullName}");
+                    long fileLength = await Task.Run(() => new FileInfo(currentFilePath).Length);
+                    LogMessage($"[OK] File created: {fileLength} bytes");
+                    LogMessage($"[OK] Full path: {currentFilePath}");
                 }
                 else
                 {
@@ -251,8 +270,8 @@ public class CSVWriter : MonoBehaviour
             }
             else
             {
-                FileInfo fi = new FileInfo(currentFilePath);
-                LogMessage($"[OK] File exists: {fi.Length} bytes");
+                long fileLength = await Task.Run(() => new FileInfo(currentFilePath).Length);
+                LogMessage($"[OK] File exists: {fileLength} bytes");
             }
 
             fileInitialized = true;
@@ -284,14 +303,8 @@ public class CSVWriter : MonoBehaviour
     }
 
     /// <summary>
-    /// Writes a row of data to the CSV file.
-    /// </summary>
-    // NOTE: List-based overload is intentionally disabled.
-    // This project writes CSV rows by header name via Dictionary to avoid column-order bugs.
-    // public void WriteRow(List<string> rowData) { ... }
-
-    /// <summary>
     /// Writes a row using a dictionary (matches values to header names).
+    /// Queues the write operation to be processed asynchronously.
     /// </summary>
     public void WriteRow(Dictionary<string, string> rowData)
     {
@@ -327,26 +340,103 @@ public class CSVWriter : MonoBehaviour
             LogWarning($"[WARN] Column count: {orderedData.Count}/{headers.Count}");
         }
 
-        try
-        {
-            string line = FormatCSVLine(orderedData);
-            File.AppendAllText(currentFilePath, line + "\n");
+        string line = FormatCSVLine(orderedData);
 
-            FileInfo fi = new FileInfo(currentFilePath);
-            LogMessage($"[OK] Row written. File: {fi.Length} bytes");
-        }
-        catch (Exception e)
+        // Queue the write operation instead of blocking
+        QueueWrite(line);
+    }
+
+    /// <summary>
+    /// Queues a line to be written asynchronously.
+    /// </summary>
+    private void QueueWrite(string line)
+    {
+        lock (lockObject)
         {
-            LogError($"[FAIL] Write failed: {e.Message}");
-            LogError($"Type: {e.GetType().Name}");
+            writeQueue.Enqueue(line);
+
+            // Start processing if not already running
+            if (!isWriting)
+            {
+                ProcessWriteQueueAsync();
+            }
         }
     }
 
     /// <summary>
-    /// Appends multiple rows at once.
+    /// Processes the write queue asynchronously.
     /// </summary>
-    // NOTE: Batch row writing is intentionally disabled to keep a single row-writing API surface.
-    // public void WriteRows(List<List<string>> rows) { ... }
+    private async void ProcessWriteQueueAsync()
+    {
+        lock (lockObject)
+        {
+            if (isWriting)
+                return;
+            isWriting = true;
+        }
+
+        while (true)
+        {
+            string line;
+
+            lock (lockObject)
+            {
+                if (writeQueue.Count == 0)
+                {
+                    isWriting = false;
+                    return;
+                }
+                line = writeQueue.Dequeue();
+            }
+
+            try
+            {
+                // Write to file on background thread
+                await Task.Run(() =>
+                {
+                    File.AppendAllText(currentFilePath, line + "\n");
+                });
+
+                // Get file size on background thread
+                long fileSize = await Task.Run(() => new FileInfo(currentFilePath).Length);
+                LogMessage($"[OK] Row written. File: {fileSize} bytes");
+            }
+            catch (Exception e)
+            {
+                LogError($"[FAIL] Write failed: {e.Message}");
+                LogError($"Type: {e.GetType().Name}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Flushes all pending writes synchronously (used on quit/destroy).
+    /// </summary>
+    private void FlushPendingWrites()
+    {
+        lock (lockObject)
+        {
+            if (writeQueue.Count == 0)
+                return;
+
+            LogMessage($"[CSVWriter] Flushing {writeQueue.Count} pending writes...");
+
+            while (writeQueue.Count > 0)
+            {
+                string line = writeQueue.Dequeue();
+                try
+                {
+                    File.AppendAllText(currentFilePath, line + "\n");
+                }
+                catch (Exception e)
+                {
+                    LogError($"[FAIL] Flush write failed: {e.Message}");
+                }
+            }
+
+            LogMessage("[CSVWriter] All pending writes flushed");
+        }
+    }
 
     /// <summary>
     /// Formats a list of values into a properly escaped CSV line.
@@ -443,6 +533,9 @@ public class CSVWriter : MonoBehaviour
     /// </summary>
     public void Reset()
     {
+        // Flush any pending writes before reset
+        FlushPendingWrites();
+
         fileInitialized = false;
         currentFilePath = null;
         headers.Clear();

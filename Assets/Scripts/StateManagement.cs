@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 
-[RequireComponent(typeof(CSVWriter))] // Ensure CSVWriter exists
+[RequireComponent(typeof(CSVWriter))]
 public class StateManagement : MonoBehaviour
 {
     [Header("Configuration")]
@@ -22,11 +22,11 @@ public class StateManagement : MonoBehaviour
     public Volume postProcessingVolume;
 
     [Header("GameObjects to Toggle")]
-    public GameObject menu;      // Menu_Read root
-    public GameObject food;      // Menu_Order root
-    public GameObject ordering;  // (optional) extra ordering UI
-    public GameObject survey;    // Survey root
-    public GameObject thankYou;  // (optional) Thank-you / end screen root
+    public GameObject menu;
+    public GameObject food;
+    public GameObject ordering;
+    public GameObject survey;
+    public GameObject thankYou;
 
     [Header("Managers")]
     public MenuManager menuManager;
@@ -35,7 +35,6 @@ public class StateManagement : MonoBehaviour
     [SerializeField, Tooltip("Auto-assigned if on same GameObject")]
     private CSVWriter _csvWriter;
     
-    // Lazy-loading property
     private CSVWriter csvWriter
     {
         get
@@ -49,41 +48,46 @@ public class StateManagement : MonoBehaviour
     }
     
     [Header("External References")]
-    public VoicePlayer waiterVoicePlayer; // (Optional: keep or remove if unused)
-    public AgentDestinationSetter agent; // Drag the Waiter/Robot here
+    public VoicePlayer waiterVoicePlayer;
+    public AgentDestinationSetter agent;
+    public AgentDestinationSetter agentDestinationSetter;
+    public ConfirmationAudioPlayer confirmationAudioPlayer; // ✅ Simple reference to audio GameObject
 
     [Header("Status (Read Only in Inspector)")]
-
-
     public int participantID;
-    public int condition;        // 1..4
-    public int currentPhase;     // 1..4
-
+    public int condition;
+    public int currentPhase;
     public string selectedFoodId = null;
     public int[] selectedOptions;
-
     public bool isOrderNowClicked;
     public bool isFoodSelected;
     public bool isOrderingConfirmed;
     public bool isSurveyCompleted;
 
-    // Public properties (now direct access via public fields)
+    // Properties
     public bool IsOrderNowClicked { get => isOrderNowClicked; set => isOrderNowClicked = value; }
     public bool IsFoodSelected { get => isFoodSelected; set => isFoodSelected = value; }
     public bool IsOrderingConfirmed { get => isOrderingConfirmed; set => isOrderingConfirmed = value; }
     public bool IsSurveyCompleted { get => isSurveyCompleted; set => isSurveyCompleted = value; }
 
-    public AgentDestinationSetter agentDestinationSetter;
-
-    public AudioClip confirmationAudio;
-
-    //public VoicePlayer voicePlayer;
-
     private void Awake()
     {
-        Debug.Log($"[StateManagement] Awake on '{gameObject.name}'");
+        Debug.Log($"[StateManagement] ========== AWAKE ==========");
+        Debug.Log($"[StateManagement] GameObject: '{gameObject.name}'");
+        Debug.Log($"[StateManagement] InstanceID: {GetInstanceID()}");
         
-        // Force initialization
+        // Check for duplicate instances
+        StateManagement[] allInstances = FindObjectsByType<StateManagement>(FindObjectsSortMode.None);
+        if (allInstances.Length > 1)
+        {
+            Debug.LogWarning($"[StateManagement] ⚠️ Found {allInstances.Length} StateManagement instances! Should only have 1.");
+            for (int i = 0; i < allInstances.Length; i++)
+            {
+                Debug.LogWarning($"  [{i}] {allInstances[i].gameObject.name} (InstanceID: {allInstances[i].GetInstanceID()})");
+            }
+        }
+        
+        // Initialize CSVWriter
         if (_csvWriter == null)
         {
             _csvWriter = GetComponent<CSVWriter>();
@@ -91,18 +95,41 @@ public class StateManagement : MonoBehaviour
         
         if (_csvWriter == null)
         {
-            Debug.LogError("[StateManagement] CRITICAL: CSVWriter not found! This component is required.");
+            Debug.LogError("[StateManagement] CRITICAL: CSVWriter not found!");
         }
         else
         {
             Debug.Log($"[StateManagement] ✓ CSVWriter ready: {_csvWriter.gameObject.name}");
         }
+        
+        // Initialize ConfirmationAudioPlayer
+        if (confirmationAudioPlayer == null)
+        {
+            Debug.LogWarning("[StateManagement] ConfirmationAudioPlayer not assigned in Inspector. Auto-finding...");
+            confirmationAudioPlayer = FindAnyObjectByType<ConfirmationAudioPlayer>();
+            
+            if (confirmationAudioPlayer != null)
+            {
+                Debug.Log($"[StateManagement] ✓ Auto-found ConfirmationAudioPlayer on: {confirmationAudioPlayer.gameObject.name}");
+            }
+            else
+            {
+                Debug.LogError("[StateManagement] ✗ CRITICAL: No ConfirmationAudioPlayer found in scene! Create one with ConfirmationAudioPlayer component.");
+            }
+        }
+        else
+        {
+            Debug.Log($"[StateManagement] ✓ ConfirmationAudioPlayer assigned: {confirmationAudioPlayer.gameObject.name}");
+        }
+        
+        Debug.Log("[StateManagement] ========== AWAKE COMPLETE ==========");
     }
 
     private void Start()
     {
         Debug.Log("StateManagement is alive!");
         
+
         // Verify CSVWriter (use property for reading)
         if (csvWriter != null)
         {
@@ -272,8 +299,7 @@ public class StateManagement : MonoBehaviour
     public void StartPhase3()
     {
         IsOrderingConfirmed = true;
-        string debugMessage = "[Phase 2] Yes button clicked! Order confirmed.";
-        Debug.Log("Phase 3 started: Waiter will now play wrap-up.");
+        Debug.Log($"[StartPhase3] Phase 3 started on '{gameObject.name}' (InstanceID: {GetInstanceID()})");
 
         // Update ExperimentSession with selected food ID
         ExperimentSession session = ExperimentSession.Instance;
@@ -283,39 +309,24 @@ public class StateManagement : MonoBehaviour
         }
 
         SaveSessionData();
-        //PlayAudio(2);
 
-        // In StartPhase3():
-        if (confirmationAudio != null)
+        if (ConfirmationAudioPlayer.Instance != null)
         {
-            AudioSource audioSource = GetComponent<AudioSource>();
-            if (audioSource == null)
-            {
-                audioSource = gameObject.AddComponent<AudioSource>();
-            }
-
-            audioSource.PlayOneShot(confirmationAudio, clipsVolume);
-            Debug.Log($"Playing confirmation audio: {confirmationAudio.name}");
+            ConfirmationAudioPlayer.Instance.PlayConfirmation();
         }
         else
         {
-            Debug.LogWarning("[StateManagement] Confirmation audio not assigned!");
+            Debug.LogWarning("[StateManagement] ConfirmationAudioPlayer.Instance is NULL! No ConfirmationAudioPlayer in scene.");
         }
 
-        // 2) Mark completion + advance to Phase 4
         IsSurveyCompleted = true;
         if (currentPhase < 4)
         {
             NextPhase();
         }
 
-        // 3) Show end screen (if assigned) and save CSV
-        //SaveSessionData();
-        
-        // Optional: Clear agent sequence if assigned
         if (agentDestinationSetter != null)
         {
-            //agentDestinationSetter.currentSequence = null;
             Debug.Log("Full sequence complete! Agent stays at destination.");
         }
     }
@@ -475,7 +486,7 @@ public class StateManagement : MonoBehaviour
 
         if (index < 0 || index >= audioClips.Length)
         {
-            Debug.LogWarning($"Audio clip index {index} out of range!");
+            Debug.LogWarning($"Invalid audio clip index: {index}. Must be between 0 and {audioClips.Length - 1}.");
             return;
         }
 
@@ -485,57 +496,23 @@ public class StateManagement : MonoBehaviour
             audioSource = gameObject.AddComponent<AudioSource>();
         }
 
-        audioSource.clip = audioClips[index];
-        audioSource.volume = clipsVolume;
-        audioSource.Play();
-        Debug.Log($"Playing audio clip {index}: {audioClips[index].name} at volume {clipsVolume}");
-    }
-
-    private void OnValidate()
-    {
-        // Auto-assign in Editor
-        if (_csvWriter == null && Application.isEditor)
-        {
-            _csvWriter = GetComponent<CSVWriter>();
-        }
-        
-        AudioSource audioSource = GetComponent<AudioSource>();
-        if (audioSource != null)
-        {
-            audioSource.volume = clipsVolume;
-        }
-    }
-
-    public void PlayAudioForCurrentPhase()
-    {
-        int audioIndex = currentPhase - 1; // Phase1->0, Phase2->1,...
-
-        if (audioClips == null || audioClips.Length == 0)
-        {
-            Debug.LogWarning("No audio clips assigned!");
-            return;
-        }
-
-        if (audioIndex < 0 || audioIndex >= audioClips.Length || audioClips[audioIndex] == null)
-        {
-            Debug.LogWarning($"No clip for Phase {currentPhase} (index {audioIndex})");
-            return;
-        }
-
-        PlayAudio(audioIndex);
+        audioSource.PlayOneShot(audioClips[index], clipsVolume);
+        Debug.Log($"Playing audio clip: {audioClips[index].name} (Index: {index})");
     }
 
     #endregion
 
-    #region Show / Hide helpers
+    #region Debug & Utils
 
-    public void ShowObject(GameObject obj)
+    [ContextMenu("LOG ALL PREFS")]
+    private void LogAllPlayerPrefs()
     {
-        if (obj == null) return;
-        if (obj.activeSelf) return;
-
-        obj.SetActive(true);
-        Debug.Log($"{obj.name} shown.");
+        //Debug.Log("=== PlayerPrefs ===");
+        //foreach (var key in PlayerPrefsUtility.GetAllKeys())
+        //{
+        //    Debug.Log($"[{key}] = {PlayerPrefs.GetString(key)}");
+        //}
+        //Debug.Log("===================");
     }
 
     public void HideObject(GameObject obj)
@@ -547,36 +524,15 @@ public class StateManagement : MonoBehaviour
         Debug.Log($"{obj.name} hidden.");
     }
 
-    public void ShowObjectForCurrentPhase()
+    public void ShowObject(GameObject obj)
     {
-        switch (currentPhase)
-        {
-            case 1:
-                ShowObject(menu);
-                break;
-            case 2:
-                if (menuManager != null)
-                {
-                    menuManager.PreparePhase2UI();
-                }
-                else
-                {
-                    Debug.LogWarning("MenuManager not assigned in StateManagement! Cannot prepare Phase 2 UI.");
-                }
-                ShowObject(food);
-                break;
-            case 3:
-                ShowObject(survey);
-                break;
-            case 4:
-                ShowObject(thankYou);
-                break;
-        }
+        if (obj == null) return;
+        if (obj.activeSelf) return;
+
+        obj.SetActive(true);
+        Debug.Log($"{obj.name} shown.");
     }
 
-    /// <summary>
-    /// Show UI for a specific phase (used by AgentDestinationSetter)
-    /// </summary>
     public void ShowUIForPhase(int phase)
     {
         switch (phase)
@@ -600,36 +556,5 @@ public class StateManagement : MonoBehaviour
         }
     }
 
-public void PlayConfirmationAudio()
-{
-    if (confirmationAudio == null)
-    {
-        Debug.LogWarning("[StateManagement] Confirmation audio not assigned!");
-        return;
-    }
-
-    AudioSource audioSource = GetComponent<AudioSource>();
-    if (audioSource == null)
-    {
-        audioSource = gameObject.AddComponent<AudioSource>();
-    }
-
-    audioSource.PlayOneShot(confirmationAudio, clipsVolume);
-    Debug.Log($"[StateManagement] Playing confirmation audio: {confirmationAudio.name}");
-}
-
-/// <summary>
-/// Returns the length of the confirmation audio in seconds (for waiting).
-/// Returns 0 if not assigned.
-/// </summary>
-public float GetConfirmationAudioLength()
-{
-    if (confirmationAudio == null)
-    {
-        Debug.LogWarning("[StateManagement] Confirmation audio not assigned, returning 0 length.");
-        return 0f;
-    }
-    return confirmationAudio.length;
-}
     #endregion
 }
