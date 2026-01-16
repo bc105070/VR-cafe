@@ -397,7 +397,7 @@ public class StateManagement : MonoBehaviour
     /// Writes a complete session data row from ExperimentSession.
     /// Initializes CSV file if needed, then writes all data in one call.
     /// </summary>
-    public void SaveSessionData()
+    public async void SaveSessionData()
     {
         ExperimentSession session = ExperimentSession.Instance;
 
@@ -421,19 +421,15 @@ public class StateManagement : MonoBehaviour
                 "ParticipantID",
                 "Condition",
                 "OrderChoice",
-                // Survey questions are currently disabled
-                // "Q1_Choice",
-                // "Q2_Choice",
-                // "Q3_Choice",
-                // "Q4_Choice",
-                // "Q5_Choice",
                 "Timestamp"
             };
 
             int participantIdInt = -1;
             int.TryParse(session.participantId, out participantIdInt);
 
-            csvWriter.InitializeFile(headers, participantIdInt);
+            Debug.Log("[StateManagement] Initializing CSV file...");
+            await csvWriter.InitializeFile(headers, participantIdInt);  // ✅ AWAIT here!
+            Debug.Log($"[StateManagement] CSV initialized: {csvWriter.IsInitialized()}");
         }
 
         if (!csvWriter.IsInitialized())
@@ -448,14 +444,10 @@ public class StateManagement : MonoBehaviour
             { "ParticipantID", session.participantId ?? "" },
             { "Condition", session.condition ?? "" },
             { "OrderChoice", session.orderChoice ?? "" },
-            // Survey questions are currently disabled
-            // { "Q1_Choice", session.q1Choice ?? "" },
-            // { "Q2_Choice", session.q2Choice ?? "" },
-            // { "Q3_Choice", session.q3Choice ?? "" },
-            // { "Q4_Choice", session.q4Choice ?? "" },
-            // { "Q5_Choice", session.q5Choice ?? "" },
             { "Timestamp", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") }
         };
+
+        Debug.Log($"[StateManagement] Writing row: PID={rowData["ParticipantID"]}, Condition={rowData["Condition"]}, Order={rowData["OrderChoice"]}");
 
         // Write the row
         csvWriter.WriteRow(rowData);

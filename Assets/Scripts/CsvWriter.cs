@@ -220,8 +220,9 @@ public class CSVWriter : MonoBehaviour
 
     /// <summary>
     /// Initializes a new CSV file with headers (async).
+    /// Returns a Task that completes when initialization is done.
     /// </summary>
-    public async void InitializeFile(List<string> columnHeaders, int participantID = -1)
+    public async Task InitializeFile(List<string> columnHeaders, int participantID = -1)
     {
         Debug.Log("[CSVWriter] ========== INITIALIZE FILE ==========");
         LogMessage("=== INITIALIZING CSV FILE ===");
@@ -266,6 +267,8 @@ public class CSVWriter : MonoBehaviour
                 else
                 {
                     LogError("[FAIL] File not created!");
+                    fileInitialized = false;
+                    return;
                 }
             }
             else
